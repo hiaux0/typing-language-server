@@ -12,18 +12,23 @@ import {
 	TextDocumentPositionParams,
 	TextDocumentSyncKind,
 	InitializeResult,
+	DocumentDiagnosticReportKind,
+	DocumentDiagnosticReport,
+	Diagnostic,
+	DiagnosticSeverity,
 } from 'vscode-languageserver/node';
 import * as WordsData from './data/words.json'
 
 import {
 	TextDocument
 } from 'vscode-languageserver-textdocument';
+import { getQuery, getTree } from './tree-sitter/tree-sitter';
 
 interface ExampleSettings {
 	maxNumberOfProblems: number;
 }
 
-const connection = createConnection(ProposedFeatures.all);
+export const connection = createConnection(ProposedFeatures.all);
 const documents: TextDocuments<TextDocument> = new TextDocuments(TextDocument);
 
 let hasDiagnosticRelatedInformationCapability = false;
@@ -46,6 +51,15 @@ connection.onInitialize((params: InitializeParams) => {
 			completionProvider: {
 				resolveProvider: true
 			},
+			diagnosticProvider: {
+				interFileDependencies: false,
+				workspaceDiagnostics: false
+			},
+			documentFormattingProvider: true,
+			documentOnTypeFormattingProvider: {
+				"firstTriggerCharacter": "}",
+				"moreTriggerCharacter": [";", ","]
+			}
 		}
 	};
 	return result;
@@ -56,17 +70,112 @@ documents.onDidClose(e => {
 	documentSettings.delete(e.document.uri);
 });
 
+// connection.onDocumentFormatting()
+
 // The content of a text document has changed. This event is emitted
 // when the text document first opened or when its content has changed.
 documents.onDidChangeContent(change => {
-	change.document
-	console.log("[server.ts,74] change: ", change)
+	const sourceCode = change.document.getText();
+	const tree = getTree(sourceCode);
+	const text = tree.rootNode.text
+	console.log("[server.ts,74] text: ", text)
+	const query = getQuery(`
+		(
+		  (fenced_code_block
+			(info_string) @info_string
+			(#eq? @info_string "typing")
+		  ) @fenced_code_block
+		)
+	`)
+	const matches = query.captures(tree.rootNode);
+	if (matches.length > 0) {
+		const match = matches[0];
+		const node = match.node;
+
+		// const codeBlockContentMatches = getQuery(`(code_fence_content (block_continuation))`).captures(node);
+		const codeBlockContentMatches = getQuery(`((code_fence_content) @block)`).captures(node);
+
+		const text = codeBlockContentMatches[0].node.text
+		const split = text.split("\n");
+		const firstRowText = split[0]
+		console.log("[server.ts,96] firstRowText : ", firstRowText)
+		const secondRowText = split[1]
+		console.log("[server.ts,98] secondRowText: ", secondRowText)
+	}
+
+
+	validateTextDocument(change.document);
 });
+// connection.onDidChangeTextDocument((change) => {
+connection.onDidChangeWatchedFiles((change) => {
+	console.log("[server.ts,67] change: ", change)
+})
 
 connection.onDidChangeWatchedFiles(_change => {
 	// Monitored files have change in VSCode
 	connection.console.log('We received a file change event');
 });
+
+connection.languages.diagnostics.on(async (params) => {
+	const document = documents.get(params.textDocument.uri);
+	if (document !== undefined) {
+		return {
+			kind: DocumentDiagnosticReportKind.Full,
+			items: await validateTextDocument(document)
+		} satisfies DocumentDiagnosticReport;
+	} else {
+		// We don't know the document. We can either try to read it from disk
+		// or we don't report problems for it.
+		return {
+			kind: DocumentDiagnosticReportKind.Full,
+			items: []
+		} satisfies DocumentDiagnosticReport;
+	}
+});
+
+async function validateTextDocument(textDocument: TextDocument): Promise<Diagnostic[]> {
+	// In this simple example we get the settings for every validate run.
+
+	// The validator creates diagnostics for all uppercase words length 2 and more
+	const text = textDocument.getText();
+	const pattern = /\b[A-Z]{2,}\b/g;
+	let m: RegExpExecArray | null;
+
+	let problems = 0;
+	const diagnostics: Diagnostic[] = [];
+	while ((m = pattern.exec(text)) && problems < 100) {
+		problems++;
+		const diagnostic: Diagnostic = {
+			severity: DiagnosticSeverity.Warning,
+			range: {
+				start: textDocument.positionAt(m.index),
+				end: textDocument.positionAt(m.index + m[0].length)
+			},
+			message: `${m[0]} is all uppercase.`,
+			source: 'ex'
+		};
+		if (hasDiagnosticRelatedInformationCapability) {
+			diagnostic.relatedInformation = [
+				{
+					location: {
+						uri: textDocument.uri,
+						range: Object.assign({}, diagnostic.range)
+					},
+					message: 'Spelling matters'
+				},
+				{
+					location: {
+						uri: textDocument.uri,
+						range: Object.assign({}, diagnostic.range)
+					},
+					message: 'Particularly for names'
+				}
+			];
+		}
+		diagnostics.push(diagnostic);
+	}
+	return diagnostics;
+}
 
 function getRandomWords(): string[] {
 	const amount = 10;
@@ -79,8 +188,6 @@ function getRandomWords(): string[] {
 // This handler provides the initial list of the completion items.
 connection.onCompletion(
 	(_textDocumentPosition: TextDocumentPositionParams): CompletionItem[] => {
-
-		console.log("[server.ts,22] WordsData: ", WordsData)
 		// The pass parameter contains the position of the text document in
 		// which code complete got requested. For the example we ignore this
 		// info and always provide the same completion items.
