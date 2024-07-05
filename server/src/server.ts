@@ -16,6 +16,7 @@ import {
 	DocumentDiagnosticReport,
 	Diagnostic,
 	DiagnosticSeverity,
+	Position,
 } from 'vscode-languageserver/node';
 import * as WordsData from './data/words.json'
 
@@ -23,6 +24,8 @@ import {
 	TextDocument
 } from 'vscode-languageserver-textdocument';
 import { getQuery, getTree } from './tree-sitter/tree-sitter';
+import { getFirstDifferentCharIndex } from './features/diagnostics/diagnostics';
+import { log } from 'console';
 
 interface ExampleSettings {
 	maxNumberOfProblems: number;
@@ -32,8 +35,6 @@ export const connection = createConnection(ProposedFeatures.all);
 const documents: TextDocuments<TextDocument> = new TextDocuments(TextDocument);
 
 let hasDiagnosticRelatedInformationCapability = false;
-const defaultSettings: ExampleSettings = { maxNumberOfProblems: 1000 };
-let globalSettings: ExampleSettings = defaultSettings;
 // Cache the settings of all open documents
 const documentSettings: Map<string, Thenable<ExampleSettings>> = new Map();
 
@@ -71,40 +72,18 @@ documents.onDidClose(e => {
 });
 
 // connection.onDocumentFormatting()
+// connection.onDocumentOnTypeFormatting((params) => {
+connection.onDocumentFormatting((params) => {
+	console.log("[server.ts,75] params: ", params)
+	return []
+});
+
 
 // The content of a text document has changed. This event is emitted
 // when the text document first opened or when its content has changed.
 documents.onDidChangeContent(change => {
-	const sourceCode = change.document.getText();
-	const tree = getTree(sourceCode);
-	const text = tree.rootNode.text
-	console.log("[server.ts,74] text: ", text)
-	const query = getQuery(`
-		(
-		  (fenced_code_block
-			(info_string) @info_string
-			(#eq? @info_string "typing")
-		  ) @fenced_code_block
-		)
-	`)
-	const matches = query.captures(tree.rootNode);
-	if (matches.length > 0) {
-		const match = matches[0];
-		const node = match.node;
-
-		// const codeBlockContentMatches = getQuery(`(code_fence_content (block_continuation))`).captures(node);
-		const codeBlockContentMatches = getQuery(`((code_fence_content) @block)`).captures(node);
-
-		const text = codeBlockContentMatches[0].node.text
-		const split = text.split("\n");
-		const firstRowText = split[0]
-		console.log("[server.ts,96] firstRowText : ", firstRowText)
-		const secondRowText = split[1]
-		console.log("[server.ts,98] secondRowText: ", secondRowText)
-	}
-
-
-	validateTextDocument(change.document);
+	checkForSpellingMistakes(change.document);
+	upperCaseValidator(change.document);
 });
 // connection.onDidChangeTextDocument((change) => {
 connection.onDidChangeWatchedFiles((change) => {
@@ -119,9 +98,12 @@ connection.onDidChangeWatchedFiles(_change => {
 connection.languages.diagnostics.on(async (params) => {
 	const document = documents.get(params.textDocument.uri);
 	if (document !== undefined) {
+		const upperCaseItems = await upperCaseValidator(document);
+		const spellingMistakes = checkForSpellingMistakes(document);
+		const items = [...upperCaseItems, ...spellingMistakes]
 		return {
 			kind: DocumentDiagnosticReportKind.Full,
-			items: await validateTextDocument(document)
+			items,
 		} satisfies DocumentDiagnosticReport;
 	} else {
 		// We don't know the document. We can either try to read it from disk
@@ -133,7 +115,8 @@ connection.languages.diagnostics.on(async (params) => {
 	}
 });
 
-async function validateTextDocument(textDocument: TextDocument): Promise<Diagnostic[]> {
+
+async function upperCaseValidator(textDocument: TextDocument): Promise<Diagnostic[]> {
 	// In this simple example we get the settings for every validate run.
 
 	// The validator creates diagnostics for all uppercase words length 2 and more
@@ -177,6 +160,60 @@ async function validateTextDocument(textDocument: TextDocument): Promise<Diagnos
 	return diagnostics;
 }
 
+/**
+ * 1.
+ * 2.
+ */
+function checkForSpellingMistakes(document: TextDocument): Diagnostic[] {
+	console.log("----------------------------");
+	// 1. Get 2 code lines
+	const sourceCode = document.getText();
+	const tree = getTree(sourceCode);
+	// const text = tree.rootNode.text
+	const query = getQuery(`
+		(
+		  (fenced_code_block
+			(info_string) @info_string
+			(#eq? @info_string "typing")
+		  ) @fenced_code_block
+		)
+	`)
+	const matches = query.captures(tree.rootNode);
+	if (matches.length === 0) return [];
+
+	const match = matches[0];
+	const node = match.node;
+
+	// const codeBlockContentMatches = getQuery(`(code_fence_content (block_continuation))`).captures(node);
+	const codeBlockContentMatches = getQuery(`((code_fence_content) @block)`).captures(node);
+
+	const codeBlockMatch = codeBlockContentMatches[0];
+	const blockText = codeBlockMatch.node.text
+	const split = blockText.split("\n");
+	const firstRowText = split[0]
+	const secondRowText = split[1]
+
+	// 2. Create diagnistics from comparison
+	const differentIndex = getFirstDifferentCharIndex(firstRowText, secondRowText);
+	console.log("[server.ts,198] differentIndex: ", differentIndex);
+	if (differentIndex === undefined) return [];
+
+	const diagnostics: Diagnostic[] = [];
+	const range = {
+		start: Position.create(codeBlockMatch.node.startPosition.row + 1, differentIndex), // +1 line index start at 0
+		end: Position.create(codeBlockMatch.node.startPosition.row + 1, secondRowText.length),
+	};
+	console.log("[server.ts,205] range: ", range)
+	const diagnostic: Diagnostic = {
+		severity: DiagnosticSeverity.Warning,
+		range,
+		message: `Spelling mistake`,
+		source: 'ex'
+	};
+	diagnostics.push(diagnostic);
+	return diagnostics;
+}
+
 function getRandomWords(): string[] {
 	const amount = 10;
 	const len = WordsData.length;
@@ -186,6 +223,7 @@ function getRandomWords(): string[] {
 }
 
 // This handler provides the initial list of the completion items.
+// TODO: this is always called?! When I was adding diagnostics, the logs here would always print
 connection.onCompletion(
 	(_textDocumentPosition: TextDocumentPositionParams): CompletionItem[] => {
 		// The pass parameter contains the position of the text document in
@@ -193,7 +231,7 @@ connection.onCompletion(
 		// info and always provide the same completion items.
 		// const randomWords = Array.from({ length: 10 }, () => Math.floor(Math.random() * 100)).join(" ");;
 		const randomWords = getRandomWords().join(" ");
-		console.log("[server.ts,221] randomWords: ", randomWords)
+		// console.log("[server.ts,221] randomWords: ", randomWords)
 		return [
 			{
 				label: 'words',
