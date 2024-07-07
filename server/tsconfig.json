@@ -10,13 +10,15 @@
 		"strict": true,
 		"outDir": "out",
 		"rootDir": "src",
-		"resolveJsonModule": true
+		"resolveJsonModule": true,
+		"types": ["jest"]
 	},
 	"include": [
 		"src"
 	],
 	"exclude": [
 		"node_modules",
+		"*test.ts",
 		".vscode-test"
 	]
 }

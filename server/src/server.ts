@@ -25,7 +25,6 @@ import {
 } from 'vscode-languageserver-textdocument';
 import { getQuery, getTree } from './tree-sitter/tree-sitter';
 import { getFirstDifferentCharIndex } from './features/diagnostics/diagnostics';
-import { log } from 'console';
 
 interface ExampleSettings {
 	maxNumberOfProblems: number;
@@ -82,6 +81,7 @@ connection.onDocumentFormatting((params) => {
 // The content of a text document has changed. This event is emitted
 // when the text document first opened or when its content has changed.
 documents.onDidChangeContent(change => {
+	console.log("changed>>>");
 	checkForSpellingMistakes(change.document);
 	upperCaseValidator(change.document);
 });
@@ -160,12 +160,7 @@ async function upperCaseValidator(textDocument: TextDocument): Promise<Diagnosti
 	return diagnostics;
 }
 
-/**
- * 1.
- * 2.
- */
 function checkForSpellingMistakes(document: TextDocument): Diagnostic[] {
-	console.log("----------------------------");
 	// 1. Get 2 code lines
 	const sourceCode = document.getText();
 	const tree = getTree(sourceCode);
@@ -195,7 +190,6 @@ function checkForSpellingMistakes(document: TextDocument): Diagnostic[] {
 
 	// 2. Create diagnistics from comparison
 	const differentIndex = getFirstDifferentCharIndex(firstRowText, secondRowText);
-	console.log("[server.ts,198] differentIndex: ", differentIndex);
 	if (differentIndex === undefined) return [];
 
 	const diagnostics: Diagnostic[] = [];
@@ -203,7 +197,6 @@ function checkForSpellingMistakes(document: TextDocument): Diagnostic[] {
 		start: Position.create(codeBlockMatch.node.startPosition.row + 1, differentIndex), // +1 line index start at 0
 		end: Position.create(codeBlockMatch.node.startPosition.row + 1, secondRowText.length),
 	};
-	console.log("[server.ts,205] range: ", range)
 	const diagnostic: Diagnostic = {
 		severity: DiagnosticSeverity.Warning,
 		range,
