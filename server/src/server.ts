@@ -25,6 +25,7 @@ import {
 } from 'vscode-languageserver-textdocument';
 import { getQuery, getTree } from './tree-sitter/tree-sitter';
 import { getFirstDifferentCharIndex } from './features/diagnostics/diagnostics';
+import { getWordAtIndex } from './modules/string';
 
 interface ExampleSettings {
 	maxNumberOfProblems: number;
@@ -118,12 +119,10 @@ connection.languages.diagnostics.on(async (params) => {
 
 async function upperCaseValidator(textDocument: TextDocument): Promise<Diagnostic[]> {
 	// In this simple example we get the settings for every validate run.
-
 	// The validator creates diagnostics for all uppercase words length 2 and more
 	const text = textDocument.getText();
 	const pattern = /\b[A-Z]{2,}\b/g;
 	let m: RegExpExecArray | null;
-
 	let problems = 0;
 	const diagnostics: Diagnostic[] = [];
 	while ((m = pattern.exec(text)) && problems < 100) {
@@ -160,11 +159,11 @@ async function upperCaseValidator(textDocument: TextDocument): Promise<Diagnosti
 	return diagnostics;
 }
 
+const wrongWords: Set<string> = new Set();
 function checkForSpellingMistakes(document: TextDocument): Diagnostic[] {
 	// 1. Get 2 code lines
 	const sourceCode = document.getText();
 	const tree = getTree(sourceCode);
-	// const text = tree.rootNode.text
 	const query = getQuery(`
 		(
 		  (fenced_code_block
@@ -175,13 +174,9 @@ function checkForSpellingMistakes(document: TextDocument): Diagnostic[] {
 	`)
 	const matches = query.captures(tree.rootNode);
 	if (matches.length === 0) return [];
-
 	const match = matches[0];
 	const node = match.node;
-
-	// const codeBlockContentMatches = getQuery(`(code_fence_content (block_continuation))`).captures(node);
 	const codeBlockContentMatches = getQuery(`((code_fence_content) @block)`).captures(node);
-
 	const codeBlockMatch = codeBlockContentMatches[0];
 	const blockText = codeBlockMatch.node.text
 	const split = blockText.split("\n");
@@ -191,6 +186,12 @@ function checkForSpellingMistakes(document: TextDocument): Diagnostic[] {
 	// 2. Create diagnistics from comparison
 	const differentIndex = getFirstDifferentCharIndex(firstRowText, secondRowText);
 	if (differentIndex === undefined) return [];
+
+	// 2.1 collect wrong words
+	const wrongWord = getWordAtIndex(firstRowText, differentIndex)
+	if (wrongWord) {
+		wrongWords.add(wrongWord);
+	}
 
 	const diagnostics: Diagnostic[] = [];
 	const range = {
@@ -217,33 +218,43 @@ function getRandomWords(): string[] {
 
 // This handler provides the initial list of the completion items.
 // TODO: this is always called?! When I was adding diagnostics, the logs here would always print
-connection.onCompletion(
-	(_textDocumentPosition: TextDocumentPositionParams): CompletionItem[] => {
-		// The pass parameter contains the position of the text document in
-		// which code complete got requested. For the example we ignore this
-		// info and always provide the same completion items.
-		// const randomWords = Array.from({ length: 10 }, () => Math.floor(Math.random() * 100)).join(" ");;
-		const randomWords = getRandomWords().join(" ");
-		// console.log("[server.ts,221] randomWords: ", randomWords)
-		return [
-			{
-				label: 'words',
-				kind: CompletionItemKind.Text,
-				data: 1,
-				insertText: randomWords,
-				detail: randomWords,
-			},
-			{
-				label: 'TypeScript',
-				kind: CompletionItemKind.Text,
-				data: 3,
-			},
-			{
-				label: 'JavaScript',
-				kind: CompletionItemKind.Text,
-				data: 2
-			}
-		];
+connection.onCompletion((_textDocumentPosition: TextDocumentPositionParams): CompletionItem[] => {
+	// The pass parameter contains the position of the text document in
+	// which code complete got requested. For the example we ignore this
+	// info and always provide the same completion items.
+	// const randomWords = Array.from({ length: 10 }, () => Math.floor(Math.random() * 100)).join(" ");;
+	const randomWords = getRandomWords().join(" ");
+	const wrongWordsArray = wrongWords.size > 0 ? Array.from(wrongWords).join(" ") : " "
+	console.log("[server.ts,229] wrongWords: ", wrongWords);
+	// console.log("[server.ts,221] randomWords: ", randomWords)
+	return [
+		{
+			label: 'words',
+			kind: CompletionItemKind.Text,
+			insertText: randomWords,
+			detail: randomWords,
+		},
+		{
+			label: 'wrong',
+			kind: CompletionItemKind.Text,
+			insertText: wrongWordsArray,
+			detail: wrongWordsArray,
+		},
+		{
+			label: 'clear',
+			kind: CompletionItemKind.Text,
+		},
+	];
+}
+);
+
+connection.onCompletionResolve(
+	(item: CompletionItem): CompletionItem => {
+		if (item.label === "clear") {
+			console.log("[server.ts,255] item: ", item);
+			wrongWords.clear();
+		}
+		return item;
 	}
 );
 
