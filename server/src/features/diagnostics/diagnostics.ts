@@ -1,8 +1,6 @@
 // type ColumnRange = [start: number, end: number];
 
 export function getFirstDifferentCharIndex(correct: string, given: string): number | undefined {
-	if (given.length > correct.length) return;
-
 	let different: number | undefined = undefined;
 	for (let i = 0; i < given.length + 1; i++) {
 		const isSame = correct[i] === given[i];

@@ -29,3 +29,13 @@ export interface GetEditorSelectionResponse {
 	documentPath: string;
 	selections: ClientEditorSelection[];
 }
+
+export interface Analytics {
+	word: string;
+	// typos: string[];
+	typos: {
+		text: string;
+		occurrence: number;
+		mispelled: number;
+	}
+}

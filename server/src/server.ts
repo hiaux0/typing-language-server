@@ -18,14 +18,14 @@ import {
 	DiagnosticSeverity,
 	Position,
 } from 'vscode-languageserver/node';
-import * as WordsData from './data/words.json'
 
 import {
 	TextDocument
 } from 'vscode-languageserver-textdocument';
-import { getQuery, getTree } from './tree-sitter/tree-sitter';
 import { getFirstDifferentCharIndex } from './features/diagnostics/diagnostics';
-import { getWordAtIndex } from './modules/string';
+import { getParagraphs, getWordAtIndex } from './modules/string';
+import { getRandomWords } from './data/random-data';
+import { getFencedCodeBlockContentNode } from './tree-sitter/ts-markdown';
 
 interface ExampleSettings {
 	maxNumberOfProblems: number;
@@ -83,7 +83,7 @@ connection.onDocumentFormatting((params) => {
 // when the text document first opened or when its content has changed.
 documents.onDidChangeContent(change => {
 	console.log("changed>>>");
-	checkForSpellingMistakes(change.document);
+	// checkForSpellingErrors(change.document);
 	upperCaseValidator(change.document);
 });
 // connection.onDidChangeTextDocument((change) => {
@@ -100,7 +100,7 @@ connection.languages.diagnostics.on(async (params) => {
 	const document = documents.get(params.textDocument.uri);
 	if (document !== undefined) {
 		const upperCaseItems = await upperCaseValidator(document);
-		const spellingMistakes = checkForSpellingMistakes(document);
+		const spellingMistakes = checkForSpellingErrors(document);
 		const items = [...upperCaseItems, ...spellingMistakes]
 		return {
 			kind: DocumentDiagnosticReportKind.Full,
@@ -115,7 +115,6 @@ connection.languages.diagnostics.on(async (params) => {
 		} satisfies DocumentDiagnosticReport;
 	}
 });
-
 
 async function upperCaseValidator(textDocument: TextDocument): Promise<Diagnostic[]> {
 	// In this simple example we get the settings for every validate run.
@@ -159,70 +158,79 @@ async function upperCaseValidator(textDocument: TextDocument): Promise<Diagnosti
 	return diagnostics;
 }
 
+
 const wrongWords: Set<string> = new Set();
-function checkForSpellingMistakes(document: TextDocument): Diagnostic[] {
+
+/**
+hello world this is it
+hello world this is it
+
+another block
+another block
+another block
+ */
+
+/**
+ * A. Collect wrong words
+ * B. Create diagnostics from comparison
+ */
+function checkForSpellingErrors(document: TextDocument): Diagnostic[] {
+	console.log("1. ----------------------------");
 	// 1. Get 2 code lines
 	const sourceCode = document.getText();
-	const tree = getTree(sourceCode);
-	const query = getQuery(`
-		(
-		  (fenced_code_block
-			(info_string) @info_string
-			(#eq? @info_string "typing")
-		  ) @fenced_code_block
-		)
-	`)
-	const matches = query.captures(tree.rootNode);
-	if (matches.length === 0) return [];
-	const match = matches[0];
-	const node = match.node;
-	const codeBlockContentMatches = getQuery(`((code_fence_content) @block)`).captures(node);
-	const codeBlockMatch = codeBlockContentMatches[0];
+	const codeBlockMatch = getFencedCodeBlockContentNode(sourceCode);
+	if (!codeBlockMatch) return []
 	const blockText = codeBlockMatch.node.text
 	const split = blockText.split("\n");
 	const firstRowText = split[0]
 	const secondRowText = split[1]
+	const paragraphs = getParagraphs(blockText)
+	console.log("[server.ts,187] paragraphs: ", paragraphs);
 
-	// 2. Create diagnistics from comparison
-	const differentIndex = getFirstDifferentCharIndex(firstRowText, secondRowText);
-	if (differentIndex === undefined) return [];
-
-	// 2.1 collect wrong words
-	const wrongWord = getWordAtIndex(firstRowText, differentIndex)
-	if (wrongWord) {
-		wrongWords.add(wrongWord);
-	}
-
+	// 2. Create diagnostics from comparison
 	const diagnostics: Diagnostic[] = [];
-	const range = {
-		start: Position.create(codeBlockMatch.node.startPosition.row + 1, differentIndex), // +1 line index start at 0
-		end: Position.create(codeBlockMatch.node.startPosition.row + 1, secondRowText.length),
-	};
-	const diagnostic: Diagnostic = {
-		severity: DiagnosticSeverity.Warning,
-		range,
-		message: `Spelling mistake`,
-		source: 'ex'
-	};
-	diagnostics.push(diagnostic);
+	paragraphs.forEach((paragraph) => {
+		const { start: paragraphStart, lines } = paragraph;
+		const [given, ...rest] = lines
+		rest.forEach((remainingLine, lineIndex) => {
+			console.log("2. [server.ts,196] lineIndex: ", lineIndex);
+			const differentIndex = getFirstDifferentCharIndex(given, remainingLine);
+			if (differentIndex === undefined) return [];
+
+			// 2.1 A. Collect wrong words
+			const wrongWord = getWordAtIndex(firstRowText, differentIndex)
+			if (wrongWord) {
+				wrongWords.add(wrongWord);
+			}
+
+			// 2.2 B. Create diagnostics
+			const startRow = paragraphStart + lineIndex + codeBlockMatch.node.startPosition.row + 1;
+			const start = Position.create(startRow, differentIndex); // +1 line index start at 0
+			console.log("2.1 [server.ts,206] start: ", start);
+			// const endCol = Math.max()
+			const end = Position.create(startRow, remainingLine.length);
+			console.log("2.2 [server.ts,208] end: ", end);
+			const range = {
+				start,
+				end,
+			};
+			const diagnostic: Diagnostic = {
+				severity: DiagnosticSeverity.Error,
+				range,
+				message: `Spelling mistake`,
+				source: 'Custom LSP'
+			};
+			diagnostics.push(diagnostic);
+		})
+
+	})
 	return diagnostics;
 }
 
-function getRandomWords(): string[] {
-	const amount = 10;
-	const len = WordsData.length;
-	const rndArr = Array.from({ length: amount }, () => Math.floor(Math.random() * len));
-	const chosenWords = rndArr.map(i => WordsData[i]);
-	return chosenWords;
-}
 
 // This handler provides the initial list of the completion items.
 // TODO: this is always called?! When I was adding diagnostics, the logs here would always print
 connection.onCompletion((_textDocumentPosition: TextDocumentPositionParams): CompletionItem[] => {
-	// The pass parameter contains the position of the text document in
-	// which code complete got requested. For the example we ignore this
-	// info and always provide the same completion items.
-	// const randomWords = Array.from({ length: 10 }, () => Math.floor(Math.random() * 100)).join(" ");;
 	const randomWords = getRandomWords().join(" ");
 	const wrongWordsArray = wrongWords.size > 0 ? Array.from(wrongWords).join(" ") : " "
 	console.log("[server.ts,229] wrongWords: ", wrongWords);
