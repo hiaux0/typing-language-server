@@ -181,11 +181,7 @@ function checkForSpellingErrors(document: TextDocument): Diagnostic[] {
 	const codeBlockMatch = getFencedCodeBlockContentNode(sourceCode);
 	if (!codeBlockMatch) return []
 	const blockText = codeBlockMatch.node.text
-	const split = blockText.split("\n");
-	const firstRowText = split[0]
-	const secondRowText = split[1]
 	const paragraphs = getParagraphs(blockText)
-	console.log("[server.ts,187] paragraphs: ", paragraphs);
 
 	// 2. Create diagnostics from comparison
 	const diagnostics: Diagnostic[] = [];
@@ -193,23 +189,17 @@ function checkForSpellingErrors(document: TextDocument): Diagnostic[] {
 		const { start: paragraphStart, lines } = paragraph;
 		const [given, ...rest] = lines
 		rest.forEach((remainingLine, lineIndex) => {
-			console.log("2. [server.ts,196] lineIndex: ", lineIndex);
 			const differentIndex = getFirstDifferentCharIndex(given, remainingLine);
 			if (differentIndex === undefined) return [];
-
 			// 2.1 A. Collect wrong words
-			const wrongWord = getWordAtIndex(firstRowText, differentIndex)
+			const wrongWord = getWordAtIndex(given, differentIndex)
 			if (wrongWord) {
 				wrongWords.add(wrongWord);
 			}
-
 			// 2.2 B. Create diagnostics
 			const startRow = paragraphStart + lineIndex + codeBlockMatch.node.startPosition.row + 1;
 			const start = Position.create(startRow, differentIndex); // +1 line index start at 0
-			console.log("2.1 [server.ts,206] start: ", start);
-			// const endCol = Math.max()
 			const end = Position.create(startRow, remainingLine.length);
-			console.log("2.2 [server.ts,208] end: ", end);
 			const range = {
 				start,
 				end,
@@ -233,8 +223,6 @@ function checkForSpellingErrors(document: TextDocument): Diagnostic[] {
 connection.onCompletion((_textDocumentPosition: TextDocumentPositionParams): CompletionItem[] => {
 	const randomWords = getRandomWords().join(" ");
 	const wrongWordsArray = wrongWords.size > 0 ? Array.from(wrongWords).join(" ") : " "
-	console.log("[server.ts,229] wrongWords: ", wrongWords);
-	// console.log("[server.ts,221] randomWords: ", randomWords)
 	return [
 		{
 			label: 'words',
@@ -259,7 +247,6 @@ connection.onCompletion((_textDocumentPosition: TextDocumentPositionParams): Com
 connection.onCompletionResolve(
 	(item: CompletionItem): CompletionItem => {
 		if (item.label === "clear") {
-			console.log("[server.ts,255] item: ", item);
 			wrongWords.clear();
 		}
 		return item;
