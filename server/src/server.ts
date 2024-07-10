@@ -26,6 +26,9 @@ import { getFirstDifferentCharIndex } from './features/diagnostics/diagnostics';
 import { getParagraphs, getWordAtIndex } from './modules/string';
 import { getRandomWords } from './data/random-data';
 import { getFencedCodeBlockContentNode } from './tree-sitter/ts-markdown';
+import { updateAnalytics } from './modules/analytics';
+import { AnalyticsMap } from './types/types';
+import { OutgoingMessage } from 'http';
 
 interface ExampleSettings {
 	maxNumberOfProblems: number;
@@ -74,7 +77,7 @@ documents.onDidClose(e => {
 // connection.onDocumentFormatting()
 // connection.onDocumentOnTypeFormatting((params) => {
 connection.onDocumentFormatting((params) => {
-	console.log("[server.ts,75] params: ", params)
+
 	return []
 });
 
@@ -88,7 +91,7 @@ documents.onDidChangeContent(change => {
 });
 // connection.onDidChangeTextDocument((change) => {
 connection.onDidChangeWatchedFiles((change) => {
-	console.log("[server.ts,67] change: ", change)
+
 })
 
 connection.onDidChangeWatchedFiles(_change => {
@@ -97,10 +100,12 @@ connection.onDidChangeWatchedFiles(_change => {
 });
 
 connection.languages.diagnostics.on(async (params) => {
+	console.log("[server.ts,102] diagnostics: ");
 	const document = documents.get(params.textDocument.uri);
 	if (document !== undefined) {
 		const upperCaseItems = await upperCaseValidator(document);
 		const spellingMistakes = checkForSpellingErrors(document);
+		// const spellingMistakes = [] as any
 		const items = [...upperCaseItems, ...spellingMistakes]
 		return {
 			kind: DocumentDiagnosticReportKind.Full,
@@ -160,6 +165,7 @@ async function upperCaseValidator(textDocument: TextDocument): Promise<Diagnosti
 
 
 const wrongWords: Set<string> = new Set();
+const mainAnalyticsMap: AnalyticsMap = new Map();
 
 /**
 hello world this is it
@@ -170,11 +176,16 @@ another block
 another block
  */
 
+
+let currentWord: string | undefined = '';
+let currentLine: number | undefined = 0;
 /**
  * A. Collect wrong words
- * B. Create diagnostics from comparison
+ * B. Analytics
+ * C. Create diagnostics from comparison
  */
 function checkForSpellingErrors(document: TextDocument): Diagnostic[] {
+	console.log("clear");
 	console.log("1. ----------------------------");
 	// 1. Get 2 code lines
 	const sourceCode = document.getText();
@@ -187,18 +198,58 @@ function checkForSpellingErrors(document: TextDocument): Diagnostic[] {
 	const diagnostics: Diagnostic[] = [];
 	paragraphs.forEach((paragraph) => {
 		const { start: paragraphStart, lines } = paragraph;
-		const [given, ...rest] = lines
+		// // console.log("[server.ts,200] paragraphStart: ", paragraphStart);
+		const [givenLine, ...rest] = lines
 		rest.forEach((remainingLine, lineIndex) => {
-			const differentIndex = getFirstDifferentCharIndex(given, remainingLine);
-			if (differentIndex === undefined) return [];
-			// 2.1 A. Collect wrong words
-			const wrongWord = getWordAtIndex(given, differentIndex)
-			if (wrongWord) {
-				wrongWords.add(wrongWord);
+			// Hack: Get the the current line
+			const hasAtLeastOneChar = remainingLine.length > 0;
+			const notCompleted = remainingLine.length < givenLine.length
+			const shouldUpdateCurrentLine = hasAtLeastOneChar && notCompleted;
+			if (!currentLine || shouldUpdateCurrentLine) {
+				currentLine = lineIndex + paragraphStart + 1; // + 1: remainingLines always have a givenLine before them
 			}
-			// 2.2 B. Create diagnostics
+
+			const isAtCurrentLine = currentLine && currentLine - paragraphStart - 1 === lineIndex;
+			if (!isAtCurrentLine) return;
+
+			// // console.log("[server.ts,202] 1. currentLine: ", currentLine);
+			// // console.log("[server.ts,202] 2. isAtCurrentLine: ", isAtCurrentLine);
+			const mispelledIndex = getFirstDifferentCharIndex(givenLine, remainingLine);
+			// console.log("[server.ts,217] 3. mispelledIndex: ", mispelledIndex);
+			if (mispelledIndex === undefined) {
+				const currentIndex = remainingLine.length;
+				const wordAtIndex = getWordAtIndex(givenLine, currentIndex);
+				// console.log("[server.ts,222] 3.2 wordAtIndex: ", wordAtIndex);
+				// console.log("[server.ts,225] 3.3 currentWord: ", currentWord);
+				// 2.0 B.1 Analytics
+				if (!currentWord || currentWord !== wordAtIndex) {
+					currentWord = wordAtIndex
+					updateAnalytics(mainAnalyticsMap, currentWord, currentWord);
+					// console.log("[server.ts,215] 4. mainAnalyticsMap: ", mainAnalyticsMap);
+				}
+					// console.log(mainAnalyticsMap.get(currentWord!)?.typos);
+				return [];
+			}
+
+			// 2.1 A. Collect wrong words
+			const givenWord = getWordAtIndex(givenLine, mispelledIndex)
+			if (givenWord) {
+				wrongWords.add(givenWord);
+			}
+
+			// 2.2 B.2 Analytics
+			const wrongWord = getWordAtIndex(remainingLine, mispelledIndex);
+			// console.log("[server.ts,238] 5.1 wrongWord: ", wrongWord);
+			// console.log("[server.ts,245] 5.2 currentWord: ", currentWord);
+			// console.log("[server.ts,244] 5.3 givenWord: ", givenWord);
+			// if (!wrongWord && )
+			updateAnalytics(mainAnalyticsMap, givenWord, wrongWord)
+			// console.log("[server.ts,230] 6. mainAnalyticsMap: ", mainAnalyticsMap);
+			// console.log(mainAnalyticsMap.get(givenWord!)?.typos);
+
+			// 2.3 C. Create diagnostics
 			const startRow = paragraphStart + lineIndex + codeBlockMatch.node.startPosition.row + 1;
-			const start = Position.create(startRow, differentIndex); // +1 line index start at 0
+			const start = Position.create(startRow, mispelledIndex); // +1 line index start at 0
 			const end = Position.create(startRow, remainingLine.length);
 			const range = {
 				start,
@@ -212,7 +263,6 @@ function checkForSpellingErrors(document: TextDocument): Diagnostic[] {
 			};
 			diagnostics.push(diagnostic);
 		})
-
 	})
 	return diagnostics;
 }

@@ -30,12 +30,16 @@ export interface GetEditorSelectionResponse {
 	selections: ClientEditorSelection[];
 }
 
-export interface Analytics {
-	word: string;
-	// typos: string[];
-	typos: {
-		text: string;
-		occurrence: number;
-		mispelled: number;
-	}
+export interface TypoAnalytics {
+	text: string;
+	mispelled: number;
 }
+
+export interface Analytics {
+	word?: string;
+	occurrence: number,
+	// typos: string[];
+	typos: TypoAnalytics[]
+}
+
+export type AnalyticsMap = Map<string, Analytics>;
