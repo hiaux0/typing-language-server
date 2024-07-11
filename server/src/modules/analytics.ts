@@ -1,6 +1,5 @@
 import { Analytics, AnalyticsMap, TypoAnalytics } from "../types/types";
 
-const mainAnalyticsMap: AnalyticsMap = new Map();
 let currentWord: string | undefined = '';
 
 function getNewTypoAnalytics(typo: string, mispelled: number): TypoAnalytics {
@@ -12,20 +11,14 @@ function getNewTypoAnalytics(typo: string, mispelled: number): TypoAnalytics {
 }
 
 export function updateAnalytics(analyticsMap: AnalyticsMap, word: string | undefined, typo: string | undefined) {
-
     console.log("[analytics.ts,14] 0.0 updateAnalytics: ");
     if (!word) return
     if (!typo) return
-    // console.log("[analytics.ts,16] 0.1 currentWord: ", currentWord);
-    // console.log("[analytics.ts,17] 0.2 word: ", word);
-    // if (!currentWord || currentWord !== word) {
-    //     currentWord = word;
-    // }
 
     // 1. New word
     const mispelled = word.includes(typo) ? 0 : 1;
     const typoAnalytics = getNewTypoAnalytics(typo, mispelled);
-    const wordData = analyticsMap.get(word);
+    const wordData = analyticsMap[word];
     console.log("[analytics.ts,22] 2. wordData: ", wordData);
     if (!wordData) {
         const wordAnalytics: Analytics = {
@@ -39,7 +32,7 @@ export function updateAnalytics(analyticsMap: AnalyticsMap, word: string | undef
             currentWord = word;
         }
 
-        analyticsMap.set(word, wordAnalytics);
+        analyticsMap[word] = wordAnalytics;
         console.log("[analytics.ts,40] analyticsMap: ", analyticsMap);
         return;
     }

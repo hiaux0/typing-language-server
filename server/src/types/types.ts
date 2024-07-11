@@ -36,10 +36,10 @@ export interface TypoAnalytics {
 }
 
 export interface Analytics {
-	word?: string;
 	occurrence: number,
 	// typos: string[];
 	typos: TypoAnalytics[]
 }
 
-export type AnalyticsMap = Map<string, Analytics>;
+// export type AnalyticsMap = Map<string, Analytics>;
+export type AnalyticsMap = Record<string, Analytics>;

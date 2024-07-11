@@ -29,6 +29,7 @@ import { getFencedCodeBlockContentNode } from './tree-sitter/ts-markdown';
 import { updateAnalytics } from './modules/analytics';
 import { AnalyticsMap } from './types/types';
 import { OutgoingMessage } from 'http';
+import { writeDb } from './data/jsonDb';
 
 interface ExampleSettings {
 	maxNumberOfProblems: number;
@@ -165,7 +166,7 @@ async function upperCaseValidator(textDocument: TextDocument): Promise<Diagnosti
 
 
 const wrongWords: Set<string> = new Set();
-const mainAnalyticsMap: AnalyticsMap = new Map();
+const mainAnalyticsMap: AnalyticsMap = {};
 
 /**
 hello world this is it
@@ -227,7 +228,7 @@ function checkForSpellingErrors(document: TextDocument): Diagnostic[] {
 					updateAnalytics(mainAnalyticsMap, currentWord, currentWord);
 					// console.log("[server.ts,215] 4. mainAnalyticsMap: ", mainAnalyticsMap);
 				}
-					// console.log(mainAnalyticsMap.get(currentWord!)?.typos);
+				// console.log(mainAnalyticsMap.get(currentWord!)?.typos);
 				return [];
 			}
 
@@ -244,6 +245,11 @@ function checkForSpellingErrors(document: TextDocument): Diagnostic[] {
 			// console.log("[server.ts,244] 5.3 givenWord: ", givenWord);
 			// if (!wrongWord && )
 			updateAnalytics(mainAnalyticsMap, givenWord, wrongWord)
+
+			writeDb(document.uri, mainAnalyticsMap)
+			const data = mainAnalyticsMap[givenWord!]
+			console.log("[server.ts,251] data: ", data);
+			// console.log("open:", JSON.stringify(data, null, 2))
 			// console.log("[server.ts,230] 6. mainAnalyticsMap: ", mainAnalyticsMap);
 			// console.log(mainAnalyticsMap.get(givenWord!)?.typos);
 

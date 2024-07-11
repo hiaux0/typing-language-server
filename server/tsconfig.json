@@ -18,6 +18,7 @@
 	],
 	"exclude": [
 		"node_modules",
+		"src/modules/scratchpad.ts",
 		"*test.ts",
 		".vscode-test"
 	]
