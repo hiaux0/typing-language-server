@@ -95,7 +95,16 @@ export function getWordAtIndex(input: string, index: number): string | undefined
     return word;
 }
 
-
+export function findLongest(input: string[]): string {
+    if (input.length === 0) return '';
+    let longest = '';
+    for (const item of input) {
+        if (item.length > longest.length) {
+            longest = item;
+        }
+    }
+    return longest
+}
 
 function getIndexBackwardsUntil(input: string, index: number, untilChars: string[]): number {
     let startIndex = 0

@@ -30,6 +30,7 @@ import { updateAnalytics } from './modules/analytics';
 import { AnalyticsMap } from './types/types';
 import { OutgoingMessage } from 'http';
 import { writeDb } from './data/jsonDb';
+import { prettyPrintTypoTable } from './modules/pretty-print';
 
 interface ExampleSettings {
 	maxNumberOfProblems: number;
@@ -249,7 +250,8 @@ function checkForSpellingErrors(document: TextDocument): Diagnostic[] {
 			writeDb(document.uri, mainAnalyticsMap)
 			const data = mainAnalyticsMap[givenWord!]
 			console.log("[server.ts,251] data: ", data);
-			// console.log("open:", JSON.stringify(data, null, 2))
+			const pretty = prettyPrintTypoTable(mainAnalyticsMap, givenWord)
+			console.log("open:", JSON.stringify(pretty))
 			// console.log("[server.ts,230] 6. mainAnalyticsMap: ", mainAnalyticsMap);
 			// console.log(mainAnalyticsMap.get(givenWord!)?.typos);
 

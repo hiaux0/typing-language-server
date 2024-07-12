@@ -1,0 +1,10 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`pretty-print.ts prettyPrintTypoTable 1`] = `
+[
+  "abcde - 1",
+  "---------",
+  "ax - 2",
+  "abcdex - 3",
+]
+`;

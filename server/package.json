@@ -18,7 +18,8 @@
 		"vscode-languageserver-textdocument": "^1.0.11"
 	},
 	"scripts": {
-		"watch": "tsc -w"
+		"watch": "tsc -w",
+		"test": "npx jest --watch"
 	},
 	"devDependencies": {
 		"@types/jest": "^29.5.12",

@@ -2,12 +2,11 @@ import { Analytics, AnalyticsMap, TypoAnalytics } from "../types/types";
 
 let currentWord: string | undefined = '';
 
-function getNewTypoAnalytics(typo: string, mispelled: number): TypoAnalytics {
-    const typoAnalytics: TypoAnalytics = {
-        text: typo,
-        mispelled
-    }
-    return typoAnalytics
+export function getWordsFromAnalytics(analyticsMap: AnalyticsMap, word: string): string[] {
+    const data = analyticsMap[word];
+    const typos = data.typos.map((item) => item.text);
+    const result = [word, ...typos];
+    return result;
 }
 
 export function updateAnalytics(analyticsMap: AnalyticsMap, word: string | undefined, typo: string | undefined) {
@@ -59,6 +58,14 @@ export function updateAnalytics(analyticsMap: AnalyticsMap, word: string | undef
     if (mispelled === 0) return;
     wordData.typos.push(typoAnalytics)
     console.log("[analytics.ts,65] analyticsMap: ", analyticsMap);
+}
+
+function getNewTypoAnalytics(typo: string, mispelled: number): TypoAnalytics {
+    const typoAnalytics: TypoAnalytics = {
+        text: typo,
+        mispelled
+    }
+    return typoAnalytics
 }
 
 // updateAnalytics(mainAnalyticsMap, 'wrong', 'wrong')

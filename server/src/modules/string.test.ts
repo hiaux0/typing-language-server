@@ -1,7 +1,7 @@
 import { getWordAtIndex } from "./string";
 
 describe('String', () => {
-    test.only('getWordAtIndex', () => {
+    test('getWordAtIndex', () => {
         expect(getWordAtIndex('012 456 89', 0)).toBe("012");
         expect(getWordAtIndex('012 456 89', 1)).toBe("012");
         expect(getWordAtIndex('012 456 89', 2)).toBe("012");
