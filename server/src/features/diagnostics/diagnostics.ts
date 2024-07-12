@@ -5,10 +5,11 @@ export function getFirstDifferentCharIndex(correct: string, given: string): numb
 	for (let i = 0; i < given.length + 1; i++) {
 		const isSame = correct[i] === given[i];
 		if (isSame) continue;
-		if (correct.includes(given)) continue;
+		if (correct.startsWith(given)) continue;
 		different = i;
 		break;
 	}
 
 	return different;
 }
+
