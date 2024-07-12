@@ -2,6 +2,12 @@ interface GetParagraphsResult {
     start: number,
     lines: string[]
 }
+
+export function addMarkdownTableBorders(input: string): string {
+    const result = `| ${input} |`;
+    return result;
+}
+
 export function getParagraphs(input: string): GetParagraphsResult[] {
     if (!input) return []
 
