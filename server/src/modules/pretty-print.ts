@@ -45,10 +45,9 @@ export function prettyPrintTypoTableAll(map: AnalyticsMap): string[] {
     });
     // 2. join the rows from top to bottom
     const result = []
-    let iterations = 0
     let rowIndex = 0
     let elementExists = true
-    while (elementExists && iterations < 7) {
+    while (elementExists) {
         elementExists = prettyfiedColumns.some(col => !!col[rowIndex])
         const joinedRow = []
         // 2.1 Go from top to bottom
@@ -61,45 +60,51 @@ export function prettyPrintTypoTableAll(map: AnalyticsMap): string[] {
             joinedRow.push(col[rowIndex])
         }
         result.push(joinedRow.join('') + '|')
-        iterations++
         rowIndex++
     }
     result.pop() // one extra empty row is added in while>for>if>continue
     return result;
 }
 
-// const map: AnalyticsMap = {
-//     "abcde": {
-//         "occurrence": 1,
-//         "typos": [
-//             {
-//                 "text": "ax",
-//                 "mispelled": 2
-//             },
-//             {
-//                 "text": "abcdex",
-//                 "mispelled": 3
-//             }
-//         ]
-//     },
-//     "123": {
-//         "occurrence": 1,
-//         "typos": [
-//             {
-//                 "text": "1x",
-//                 "mispelled": 2
-//             },
-//             // {
-//             //     "text": "01234x",
-//             //     "mispelled": 3
-//             // }
-//         ]
-//     }
-// };
-// const result = prettyPrintTypoTableAll(map)
-// console.log(result[0]);
-// console.log(result[1]);
-// console.log(result[2]);
-// console.log(result[3]);
-// console.log(result[4]);
+const map: AnalyticsMap = {
+    "banquets": {
+        "occurrence": 8,
+        "typos": [
+            {
+                "text": "banques",
+                "mispelled": 2
+            },
+            {
+                "text": "banqe",
+                "mispelled": 2
+            },
+            {
+                "text": "banqets",
+                "mispelled": 2
+            },
+            {
+                "text": "banqet",
+                "mispelled": 1
+            },
+            {
+                "text": "bang",
+                "mispelled": 1
+            },
+            {
+                "text": "banquest",
+                "mispelled": 27
+            }
+        ]
+    },
+};
+const result = prettyPrintTypoTableAll(map)
+console.log(result[0]);
+console.log(result[1]);
+console.log(result[2]);
+console.log(result[3]);
+console.log(result[4]);
+console.log(result[5]);
+console.log(result[6]);
+console.log(result[7]);
+console.log(result[8]);
 

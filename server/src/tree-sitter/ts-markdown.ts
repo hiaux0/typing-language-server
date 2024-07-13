@@ -1,13 +1,14 @@
+import { QueryCapture } from "tree-sitter";
 import { getQuery, getTree } from "./tree-sitter";
 
 /* TODO more than the first block */
-export function getFencedCodeBlockContentNode(sourceCode: string) {
+export function getFencedCodeBlockContentNodeByName(sourceCode: string, codeBlockName: string): QueryCapture | undefined {
 	const tree = getTree(sourceCode);
 	const query = getQuery(`
 		(
 		  (fenced_code_block
 			(info_string) @info_string
-			(#eq? @info_string "typing")
+			(#eq? @info_string ${codeBlockName})
 		  ) @fenced_code_block
 		)
 	`)
@@ -19,3 +20,4 @@ export function getFencedCodeBlockContentNode(sourceCode: string) {
 	const codeBlockMatch = codeBlockContentMatches[0];
 	return codeBlockMatch;
 }
+

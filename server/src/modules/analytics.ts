@@ -8,6 +8,39 @@ export function getWordsFromAnalytics(analyticsMap: AnalyticsMap, word: string):
     const result = [word, ...typos];
     return result;
 }
+// const map = {
+//     "banquets": {
+//         "occurrence": 8,
+//         "typos": [
+//             {
+//                 "text": "banques",
+//                 "mispelled": 2
+//             },
+//             {
+//                 "text": "banqe",
+//                 "mispelled": 2
+//             },
+//             {
+//                 "text": "banqets",
+//                 "mispelled": 2
+//             },
+//             {
+//                 "text": "banqet",
+//                 "mispelled": 1
+//             },
+//             {
+//                 "text": "bang",
+//                 "mispelled": 1
+//             },
+//             {
+//                 "text": "banquest",
+//                 "mispelled": 27
+//             }
+//         ]
+//     },
+// }
+// const result = getWordsFromAnalytics(map, 'banquets')
+// console.log("[analytics.ts,44] result: ", result.length);
 
 export function updateAnalytics(analyticsMap: AnalyticsMap, word: string | undefined, typo: string | undefined) {
     console.log("[analytics.ts,14] 0.0 updateAnalytics: ");

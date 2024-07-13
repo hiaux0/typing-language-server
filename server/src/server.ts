@@ -25,12 +25,13 @@ import {
 import { getFirstDifferentCharIndex } from './features/diagnostics/diagnostics';
 import { getParagraphs, getWordAtIndex } from './modules/string';
 import { getRandomWords } from './data/random-data';
-import { getFencedCodeBlockContentNode } from './tree-sitter/ts-markdown';
+import { getFencedCodeBlockContentNodeByName } from './tree-sitter/ts-markdown';
 import { updateAnalytics } from './modules/analytics';
 import { AnalyticsMap } from './types/types';
 import { OutgoingMessage } from 'http';
 import { writeDb } from './data/jsonDb';
-import { prettyPrintTypoTable } from './modules/pretty-print';
+import { prettyPrintTypoTable, prettyPrintTypoTableAll } from './modules/pretty-print';
+import { getFilterLettersForWords } from './features/configuration';
 
 interface ExampleSettings {
 	maxNumberOfProblems: number;
@@ -89,6 +90,7 @@ connection.onDocumentFormatting((params) => {
 documents.onDidChangeContent(change => {
 	console.log("changed>>>");
 	// checkForSpellingErrors(change.document);
+
 	upperCaseValidator(change.document);
 });
 // connection.onDidChangeTextDocument((change) => {
@@ -105,6 +107,9 @@ connection.languages.diagnostics.on(async (params) => {
 	console.log("[server.ts,102] diagnostics: ");
 	const document = documents.get(params.textDocument.uri);
 	if (document !== undefined) {
+		const letters = getFilterLettersForWords(document.getText())
+		console.log("[server.ts,94] letters: ", letters);
+
 		const upperCaseItems = await upperCaseValidator(document);
 		const spellingMistakes = checkForSpellingErrors(document);
 		// const spellingMistakes = [] as any
@@ -167,7 +172,7 @@ async function upperCaseValidator(textDocument: TextDocument): Promise<Diagnosti
 
 
 const wrongWords: Set<string> = new Set();
-const mainAnalyticsMap: AnalyticsMap = {};
+let mainAnalyticsMap: AnalyticsMap = {};
 
 /**
 hello world this is it
@@ -187,11 +192,10 @@ let currentLine: number | undefined = 0;
  * C. Create diagnostics from comparison
  */
 function checkForSpellingErrors(document: TextDocument): Diagnostic[] {
-	console.log("clear");
 	console.log("1. ----------------------------");
 	// 1. Get 2 code lines
 	const sourceCode = document.getText();
-	const codeBlockMatch = getFencedCodeBlockContentNode(sourceCode);
+	const codeBlockMatch = getFencedCodeBlockContentNodeByName(sourceCode, "typing");
 	if (!codeBlockMatch) return []
 	const blockText = codeBlockMatch.node.text
 	const paragraphs = getParagraphs(blockText)
@@ -217,7 +221,7 @@ function checkForSpellingErrors(document: TextDocument): Diagnostic[] {
 			// // console.log("[server.ts,202] 1. currentLine: ", currentLine);
 			// // console.log("[server.ts,202] 2. isAtCurrentLine: ", isAtCurrentLine);
 			const mispelledIndex = getFirstDifferentCharIndex(givenLine, remainingLine);
-			// console.log("[server.ts,217] 3. mispelledIndex: ", mispelledIndex);
+			console.log("[server.ts,217] 3. mispelledIndex: ", mispelledIndex);
 			if (mispelledIndex === undefined) {
 				const currentIndex = remainingLine.length;
 				const wordAtIndex = getWordAtIndex(givenLine, currentIndex);
@@ -227,7 +231,7 @@ function checkForSpellingErrors(document: TextDocument): Diagnostic[] {
 				if (!currentWord || currentWord !== wordAtIndex) {
 					currentWord = wordAtIndex
 					updateAnalytics(mainAnalyticsMap, currentWord, currentWord);
-					// console.log("[server.ts,215] 4. mainAnalyticsMap: ", mainAnalyticsMap);
+					console.log("[server.ts,215] 4. mainAnalyticsMap: ", mainAnalyticsMap);
 				}
 				// console.log(mainAnalyticsMap.get(currentWord!)?.typos);
 				return [];
@@ -248,9 +252,7 @@ function checkForSpellingErrors(document: TextDocument): Diagnostic[] {
 			updateAnalytics(mainAnalyticsMap, givenWord, wrongWord)
 
 			writeDb(document.uri, mainAnalyticsMap)
-			const data = mainAnalyticsMap[givenWord!]
-			console.log("[server.ts,251] data: ", data);
-			const pretty = prettyPrintTypoTable(mainAnalyticsMap, givenWord)
+			const pretty = prettyPrintTypoTableAll(mainAnalyticsMap)
 			console.log("open:", JSON.stringify(pretty))
 			// console.log("[server.ts,230] 6. mainAnalyticsMap: ", mainAnalyticsMap);
 			// console.log(mainAnalyticsMap.get(givenWord!)?.typos);
@@ -279,20 +281,14 @@ function checkForSpellingErrors(document: TextDocument): Diagnostic[] {
 // This handler provides the initial list of the completion items.
 // TODO: this is always called?! When I was adding diagnostics, the logs here would always print
 connection.onCompletion((_textDocumentPosition: TextDocumentPositionParams): CompletionItem[] => {
-	const randomWords = getRandomWords().join(" ");
-	const wrongWordsArray = wrongWords.size > 0 ? Array.from(wrongWords).join(" ") : " "
 	return [
 		{
 			label: 'words',
 			kind: CompletionItemKind.Text,
-			insertText: randomWords,
-			detail: randomWords,
 		},
 		{
 			label: 'wrong',
 			kind: CompletionItemKind.Text,
-			insertText: wrongWordsArray,
-			detail: wrongWordsArray,
 		},
 		{
 			label: 'clear',
@@ -306,6 +302,16 @@ connection.onCompletionResolve(
 	(item: CompletionItem): CompletionItem => {
 		if (item.label === "clear") {
 			wrongWords.clear();
+		} else if (item.label === 'words') {
+			const randomWords = getRandomWords(6).join(" ");
+			item.insertText = randomWords
+			item.detail = randomWords
+			mainAnalyticsMap = {}
+		} else if (item.label === 'wrong') {
+			const wrongWordsArray = wrongWords.size > 0 ? Array.from(wrongWords).join(" ") : " "
+			item.insertText = wrongWordsArray;
+			item.detail = wrongWordsArray;
+
 		}
 		return item;
 	}
