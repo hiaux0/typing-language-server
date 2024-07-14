@@ -27,11 +27,10 @@ import { getParagraphs, getWordAtIndex } from './modules/string';
 import { getRandomWords } from './data/random-data';
 import { getFencedCodeBlockContentNodeByName } from './tree-sitter/ts-markdown';
 import { updateAnalytics } from './modules/analytics';
-import { AnalyticsMap } from './types/types';
-import { OutgoingMessage } from 'http';
+import { AnalyticsMap, WordsFilterConfigurationOutput } from './types/types';
 import { writeDb } from './data/jsonDb';
-import { prettyPrintTypoTable, prettyPrintTypoTableAll } from './modules/pretty-print';
-import { getFilterLettersForWords } from './features/configuration';
+import { prettyPrintTypoTableAll } from './modules/pretty-print';
+import { getFilterConfigurationsForWords } from './features/configuration';
 
 interface ExampleSettings {
 	maxNumberOfProblems: number;
@@ -79,24 +78,29 @@ documents.onDidClose(e => {
 
 // connection.onDocumentFormatting()
 // connection.onDocumentOnTypeFormatting((params) => {
-connection.onDocumentFormatting((params) => {
-
+connection.onDocumentFormatting((_params) => {
 	return []
 });
 
+let filterConfig: WordsFilterConfigurationOutput;
+documents.onDidOpen((event) => {
+	filterConfig = getFilterConfigurationsForWords(event.document.getText())
+	console.log("[server.ts,88] filterConfig: ", filterConfig);
+})
+
+documents.onDidSave((event) => {
+	filterConfig = getFilterConfigurationsForWords(event.document.getText())
+	console.log("[server.ts,93] filterConfig: ", filterConfig);
+})
 
 // The content of a text document has changed. This event is emitted
 // when the text document first opened or when its content has changed.
 documents.onDidChangeContent(change => {
-	console.log("changed>>>");
+	// console.log("changed>>>");
 	// checkForSpellingErrors(change.document);
 
 	upperCaseValidator(change.document);
 });
-// connection.onDidChangeTextDocument((change) => {
-connection.onDidChangeWatchedFiles((change) => {
-
-})
 
 connection.onDidChangeWatchedFiles(_change => {
 	// Monitored files have change in VSCode
@@ -107,9 +111,6 @@ connection.languages.diagnostics.on(async (params) => {
 	console.log("[server.ts,102] diagnostics: ");
 	const document = documents.get(params.textDocument.uri);
 	if (document !== undefined) {
-		const letters = getFilterLettersForWords(document.getText())
-		console.log("[server.ts,94] letters: ", letters);
-
 		const upperCaseItems = await upperCaseValidator(document);
 		const spellingMistakes = checkForSpellingErrors(document);
 		// const spellingMistakes = [] as any
@@ -295,15 +296,17 @@ connection.onCompletion((_textDocumentPosition: TextDocumentPositionParams): Com
 			kind: CompletionItemKind.Text,
 		},
 	];
-}
-);
+});
 
 connection.onCompletionResolve(
 	(item: CompletionItem): CompletionItem => {
 		if (item.label === "clear") {
 			wrongWords.clear();
 		} else if (item.label === 'words') {
-			const randomWords = getRandomWords(6).join(" ");
+			// console.log("[server.ts,307] filterConfig: ", filterConfig);
+			// const randomWords = getRandomWords(6).join(" ");
+			const randomWords = getRandomWords(filterConfig.amount, filterConfig)?.join(" ") ?? "no words for given filter found";
+			// console.log("[server.ts,310] randomWords: ", randomWords);
 			item.insertText = randomWords
 			item.detail = randomWords
 			mainAnalyticsMap = {}

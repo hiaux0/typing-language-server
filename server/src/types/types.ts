@@ -43,3 +43,18 @@ export interface Analytics {
 
 // export type AnalyticsMap = Map<string, Analytics>;
 export type AnalyticsMap = Record<string, Analytics>;
+
+
+export interface WordsFilterConfigurationInput {
+	amount: number, // amount of words
+	length: number, // length of the word
+	// letters: string | string[], // "rs" or ["st", "rs"]
+	oneOf: string | string[], // "rs" or ["r", "s"]
+	inOneWord: string | string[], // "rs, at" or ["rs", "at"]
+	ignore: string | string[], // "rs" or ["st", "rs"]
+}
+
+export interface WordsFilterConfigurationOutput extends WordsFilterConfigurationInput {
+	oneOf: string[], // ["r", "s"]
+	ignore: string[], // "rs" or ["st", "rs"]
+}
