@@ -27,8 +27,8 @@ import { getParagraphs, getWordAtIndex } from './modules/string';
 import { getRandomWords } from './data/random-data';
 import { getFencedCodeBlockContentNodeByName } from './tree-sitter/ts-markdown';
 import { updateAnalytics } from './modules/analytics';
-import { AnalyticsMap, WordsFilterConfigurationOutput } from './types/types';
-import { writeDb } from './data/jsonDb';
+import { TypingAnalyticsMap, WordsFilterConfigurationOutput } from './types/types';
+import { JsonDb } from './data/jsonDb';
 import { prettyPrintTypoTableAll } from './modules/pretty-print';
 import { getFilterConfigurationsForWords } from './features/configuration';
 
@@ -83,14 +83,16 @@ connection.onDocumentFormatting((_params) => {
 });
 
 let filterConfig: WordsFilterConfigurationOutput;
+const typingDb = new JsonDb<TypingAnalyticsMap>();
+let mainAnalyticsMap: TypingAnalyticsMap = {};
 documents.onDidOpen((event) => {
+	typingDb.setDbPath(event.document.uri);
+	mainAnalyticsMap = typingDb.readDb();
 	filterConfig = getFilterConfigurationsForWords(event.document.getText())
-	console.log("[server.ts,88] filterConfig: ", filterConfig);
 })
 
 documents.onDidSave((event) => {
 	filterConfig = getFilterConfigurationsForWords(event.document.getText())
-	console.log("[server.ts,93] filterConfig: ", filterConfig);
 })
 
 // The content of a text document has changed. This event is emitted
@@ -173,7 +175,6 @@ async function upperCaseValidator(textDocument: TextDocument): Promise<Diagnosti
 
 
 const wrongWords: Set<string> = new Set();
-let mainAnalyticsMap: AnalyticsMap = {};
 
 /**
 hello world this is it
@@ -222,7 +223,6 @@ function checkForSpellingErrors(document: TextDocument): Diagnostic[] {
 			// // console.log("[server.ts,202] 1. currentLine: ", currentLine);
 			// // console.log("[server.ts,202] 2. isAtCurrentLine: ", isAtCurrentLine);
 			const mispelledIndex = getFirstDifferentCharIndex(givenLine, remainingLine);
-			console.log("[server.ts,217] 3. mispelledIndex: ", mispelledIndex);
 			if (mispelledIndex === undefined) {
 				const currentIndex = remainingLine.length;
 				const wordAtIndex = getWordAtIndex(givenLine, currentIndex);
@@ -234,7 +234,6 @@ function checkForSpellingErrors(document: TextDocument): Diagnostic[] {
 					updateAnalytics(mainAnalyticsMap, currentWord, currentWord);
 					console.log("[server.ts,215] 4. mainAnalyticsMap: ", mainAnalyticsMap);
 				}
-				// console.log(mainAnalyticsMap.get(currentWord!)?.typos);
 				return [];
 			}
 
@@ -252,11 +251,9 @@ function checkForSpellingErrors(document: TextDocument): Diagnostic[] {
 			// if (!wrongWord && )
 			updateAnalytics(mainAnalyticsMap, givenWord, wrongWord)
 
-			writeDb(document.uri, mainAnalyticsMap)
+			typingDb.writeDb(document.uri, mainAnalyticsMap);
 			const pretty = prettyPrintTypoTableAll(mainAnalyticsMap)
 			console.log("open:", JSON.stringify(pretty))
-			// console.log("[server.ts,230] 6. mainAnalyticsMap: ", mainAnalyticsMap);
-			// console.log(mainAnalyticsMap.get(givenWord!)?.typos);
 
 			// 2.3 C. Create diagnostics
 			const startRow = paragraphStart + lineIndex + codeBlockMatch.node.startPosition.row + 1;
@@ -303,8 +300,8 @@ connection.onCompletionResolve(
 		if (item.label === "clear") {
 			wrongWords.clear();
 		} else if (item.label === 'words') {
-			// console.log("[server.ts,307] filterConfig: ", filterConfig);
-			// const randomWords = getRandomWords(6).join(" ");
+			console.log("[server.ts,307] filterConfig: ", filterConfig);
+			// const randomWords = getRandomWords(filterConfig.amount).join(" ");
 			const randomWords = getRandomWords(filterConfig.amount, filterConfig)?.join(" ") ?? "no words for given filter found";
 			// console.log("[server.ts,310] randomWords: ", randomWords);
 			item.insertText = randomWords

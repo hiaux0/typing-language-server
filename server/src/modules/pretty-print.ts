@@ -1,8 +1,8 @@
-import { AnalyticsMap } from "../types/types";
+import { TypingAnalyticsMap } from "../types/types";
 import { getWordsFromAnalytics } from "./analytics";
 import { findLongest } from "./string";
 
-export function prettyPrintTypoTable(map: AnalyticsMap, word: string | undefined): string[] {
+export function prettyPrintTypoTable(map: TypingAnalyticsMap, word: string | undefined): string[] {
     if (!word) return []
     const data = map[word]
     const words = getWordsFromAnalytics(map, word);
@@ -38,7 +38,7 @@ export function prettyPrintTypoTable(map: AnalyticsMap, word: string | undefined
 // console.log("[pretty-print.ts,55] result: ", result);
 
 
-export function prettyPrintTypoTableAll(map: AnalyticsMap): string[] {
+export function prettyPrintTypoTableAll(map: TypingAnalyticsMap): string[] {
     // 1. get each row prettified
     const prettyfiedColumns = Object.keys(map).map((word) => {
         return prettyPrintTypoTable(map, word);
@@ -66,7 +66,7 @@ export function prettyPrintTypoTableAll(map: AnalyticsMap): string[] {
     return result;
 }
 
-const map: AnalyticsMap = {
+const map: TypingAnalyticsMap = {
     "banquets": {
         "occurrence": 8,
         "typos": [

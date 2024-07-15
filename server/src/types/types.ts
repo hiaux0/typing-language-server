@@ -1,6 +1,11 @@
 import { Position } from "vscode-languageserver-textdocument";
 
 /**
+ * file://path/to/file.ext
+ */
+export type Uri = string;
+
+/**
  * Type from the client: vscode.TextEditor.Selection
  */
 export interface ClientEditorSelection {
@@ -35,26 +40,27 @@ export interface TypoAnalytics {
 	mispelled: number;
 }
 
-export interface Analytics {
+export interface TypingAnalytics {
 	occurrence: number,
-	// typos: string[];
 	typos: TypoAnalytics[]
 }
 
 // export type AnalyticsMap = Map<string, Analytics>;
-export type AnalyticsMap = Record<string, Analytics>;
+export type TypingAnalyticsMap = Record<string, TypingAnalytics>;
 
 
 export interface WordsFilterConfigurationInput {
 	amount: number, // amount of words
 	length: number, // length of the word
 	// letters: string | string[], // "rs" or ["st", "rs"]
-	oneOf: string | string[], // "rs" or ["r", "s"]
-	inOneWord: string | string[], // "rs, at" or ["rs", "at"]
 	ignore: string | string[], // "rs" or ["st", "rs"]
+	inOneWord: string | string[], // "rs, at" or ["rs", "at"]
+	oneOf: string | string[], // "rs" or ["r", "s"]
+	sequence: string | string[], // "rs, at" or ["rs", "at"]
 }
 
 export interface WordsFilterConfigurationOutput extends WordsFilterConfigurationInput {
-	oneOf: string[], // ["r", "s"]
 	ignore: string[], // "rs" or ["st", "rs"]
+	oneOf: string[], // ["r", "s"]
+	sequence: string[], // ["r", "s"]
 }

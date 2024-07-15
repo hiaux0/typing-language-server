@@ -3,10 +3,11 @@ import { WordsFilterConfigurationInput, WordsFilterConfigurationOutput } from ".
 
 const defaultFilterConfigurationOutput: WordsFilterConfigurationOutput = {
 	amount: 10,
-	oneOf: [],
-	inOneWord: [],
+	length: 999,
 	ignore: [],
-	length: 999
+	inOneWord: [],
+	oneOf: [],
+	sequence: [],
 }
 
 /**
@@ -21,7 +22,6 @@ const defaultFilterConfigurationOutput: WordsFilterConfigurationOutput = {
  * result // => ["r", "s"]
  * ```
  */
-// export function getFilterLettersForWords(sourceCode: string): string[] {
 export function getFilterConfigurationsForWords(sourceCode: string): WordsFilterConfigurationOutput {
 	const node = getFencedCodeBlockContentNodeByName(sourceCode, "settings")
 	const text = node?.node.text;
@@ -32,17 +32,22 @@ export function getFilterConfigurationsForWords(sourceCode: string): WordsFilter
 		output.amount = asJson.amount;
 		output.length = asJson.length;
 
-		if (typeof asJson.oneOf === 'string') {
-			const lettersArr = asJson.oneOf.split("").filter(char => char.trim() !== "");
-			output.oneOf = lettersArr;
-		}
-
-		if (typeof asJson.ignore === 'string') {
-			const lettersArr = asJson.ignore.split("").filter(char => char.trim() !== "");
-			output.ignore = lettersArr;
-		}
+		stringToArray("ignore")
+		stringToArray("inOneWord")
+		stringToArray("oneOf")
+		stringToArray("sequence")
 
 		return output;
+
+		function stringToArray(key: keyof WordsFilterConfigurationOutput): void {
+			if (typeof asJson[key] === 'string') {
+				const lettersArr = asJson[key]
+					.split(",")
+					.filter(char => char.trim() !== "");
+				// @ts-ignore - output has props with number as keys, but we assign them at the start of the try block
+				output[key] = lettersArr;
+			}
+		}
 	} catch (error) {
 		console.log("Not valid JSON");
 		console.log("[configuration.ts,23] error: ", error);

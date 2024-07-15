@@ -1,10 +1,10 @@
-import { AnalyticsMap } from "../types/types";
+import { TypingAnalyticsMap } from "../types/types";
 import { prettyPrintTypoTable, prettyPrintTypoTableAll } from "./pretty-print";
 
 describe('pretty-print.ts', () => {
     describe('prettyPrintTypoTable', () => {
         test('1 entry', () => {
-            const map: AnalyticsMap = {
+            const map: TypingAnalyticsMap = {
                 "abcde": {
                     "occurrence": 1,
                     "typos": [
@@ -24,7 +24,7 @@ describe('pretty-print.ts', () => {
             expect(result).toMatchSnapshot()
         })
         test('2 entries', () => {
-            const map: AnalyticsMap = {
+            const map: TypingAnalyticsMap = {
                 "abcde": {
                     "occurrence": 1,
                     "typos": [

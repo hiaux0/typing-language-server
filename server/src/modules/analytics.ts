@@ -1,8 +1,8 @@
-import { Analytics, AnalyticsMap, TypoAnalytics } from "../types/types";
+import { TypingAnalytics, TypingAnalyticsMap, TypoAnalytics } from "../types/types";
 
 let currentWord: string | undefined = '';
 
-export function getWordsFromAnalytics(analyticsMap: AnalyticsMap, word: string): string[] {
+export function getWordsFromAnalytics(analyticsMap: TypingAnalyticsMap, word: string): string[] {
     const data = analyticsMap[word];
     const typos = data.typos.map((item) => item.text);
     const result = [word, ...typos];
@@ -42,7 +42,7 @@ export function getWordsFromAnalytics(analyticsMap: AnalyticsMap, word: string):
 // const result = getWordsFromAnalytics(map, 'banquets')
 // console.log("[analytics.ts,44] result: ", result.length);
 
-export function updateAnalytics(analyticsMap: AnalyticsMap, word: string | undefined, typo: string | undefined) {
+export function updateAnalytics(analyticsMap: TypingAnalyticsMap, word: string | undefined, typo: string | undefined) {
     if (!word) return
     if (!typo) return
 
@@ -51,7 +51,7 @@ export function updateAnalytics(analyticsMap: AnalyticsMap, word: string | undef
     const typoAnalytics = getNewTypoAnalytics(typo, mispelled);
     const wordData = analyticsMap[word];
     if (!wordData) {
-        const wordAnalytics: Analytics = {
+        const wordAnalytics: TypingAnalytics = {
             occurrence: 1,
             typos: []
         }
@@ -87,16 +87,14 @@ export function updateAnalytics(analyticsMap: AnalyticsMap, word: string | undef
     if (mispelled === 0) return;
 
     // 4.1 Replace if it's a substring
-    console.log("[analytics.ts,91] typo: ", typo);
     const partOf = wordData.typos.find(existingTypo => typo.startsWith(existingTypo.text))
     if (partOf) {
         partOf.text = typo
         return;
     }
-    console.log("[analytics.ts,92] partOf: ", partOf);
     typoAnalytics
-    console.log(typoAnalytics);
     wordData.typos.push(typoAnalytics)
+    wordData.typos.sort((a, b) => a.text.localeCompare(b.text))
 }
 
 function getNewTypoAnalytics(typo: string, mispelled: number): TypoAnalytics {
@@ -108,16 +106,16 @@ function getNewTypoAnalytics(typo: string, mispelled: number): TypoAnalytics {
 }
 
 
-const mainAnalyticsMap: AnalyticsMap = {};
-updateAnalytics(mainAnalyticsMap, 'seek', 'r')
-updateAnalytics(mainAnalyticsMap, 'seek', 're')
-updateAnalytics(mainAnalyticsMap, 'seek', 'ree')
-updateAnalytics(mainAnalyticsMap, 'seek', 'reek')
-console.log("[analytics.ts,110] mainAnalyticsMap: ", mainAnalyticsMap.seek);
-console.log("[analytics.ts,110] mainAnalyticsMap: ", mainAnalyticsMap.seek.typos[0]);
-console.log("[analytics.ts,110] mainAnalyticsMap: ", mainAnalyticsMap.seek.typos[1]);
-console.log("[analytics.ts,110] mainAnalyticsMap: ", mainAnalyticsMap.seek.typos[2]);
-console.log("[analytics.ts,110] mainAnalyticsMap: ", mainAnalyticsMap.seek.typos[3]);
+//const mainAnalyticsMap: AnalyticsMap = {};
+//updateAnalytics(mainAnalyticsMap, 'seek', 'r')
+//updateAnalytics(mainAnalyticsMap, 'seek', 're')
+//updateAnalytics(mainAnalyticsMap, 'seek', 'ree')
+//updateAnalytics(mainAnalyticsMap, 'seek', 'reek')
+//console.log("[analytics.ts,110] mainAnalyticsMap: ", mainAnalyticsMap.seek);
+//console.log("[analytics.ts,110] mainAnalyticsMap: ", mainAnalyticsMap.seek.typos[0]);
+//console.log("[analytics.ts,110] mainAnalyticsMap: ", mainAnalyticsMap.seek.typos[1]);
+//console.log("[analytics.ts,110] mainAnalyticsMap: ", mainAnalyticsMap.seek.typos[2]);
+//console.log("[analytics.ts,110] mainAnalyticsMap: ", mainAnalyticsMap.seek.typos[3]);
 // updateAnalytics(mainAnalyticsMap, 'wrong', 'wh')
 // updateAnalytics(mainAnalyticsMap, 'wrong', 'whoong')
 // // updateAnalytics(mainAnalyticsMap, 'wrong', 'whong')

@@ -1,7 +1,7 @@
-import { AnalyticsMap } from "../types/types";
+import { TypingAnalyticsMap } from "../types/types";
 import { updateAnalytics } from "./analytics";
 
-const testAnalyticsMap: AnalyticsMap = {}
+const testAnalyticsMap: TypingAnalyticsMap = {}
 
 describe('analytics', () => {
     test('updateAnalytics', () => {
