@@ -52,10 +52,13 @@ export function getRandomWords(amount: number = 10, filters?: WordsFilterConfigu
     // Filter by selecting a random index, then from there find the next word, that matches the filter
     /* D. */
     const lettersIgnore = finalFilters.ignore ?? [];
+    console.log("[random-data.ts,55] lettersIgnore: ", lettersIgnore);
     /* E. */
     const sequenceFilter = finalFilters.sequence ?? [];
     const wordLength = finalFilters.length
+    console.log("[random-data.ts,58] wordLength: ", wordLength);
     const orderOfFilterProps = Object.keys(finalFilters);
+    console.log("[random-data.ts,60] orderOfFilterProps: ", orderOfFilterProps);
 
     const orderingFilterFunctionMap: Record<string, Function> = {
         ignore: filterByIgnore,
@@ -67,7 +70,7 @@ export function getRandomWords(amount: number = 10, filters?: WordsFilterConfigu
     /* A. */
     // while ((wordCollector.size < finalAmount) && infiniteLoopCounter < 2) {
     while ((wordCollector.size < finalAmount) && infiniteLoopCounter < WordsData.length) {
-        // console.log("------------------------------------------------------------");
+        console.log("------------------------------------------------------------");
         infiniteLoopCounter++;
         let wordPool = WordsData
         wordPool = wordPool.filter(word => !wordCollector.has(word));
@@ -75,9 +78,9 @@ export function getRandomWords(amount: number = 10, filters?: WordsFilterConfigu
         orderOfFilterProps.forEach(filterProp => {
             if (typeof orderingFilterFunctionMap[filterProp] !== 'function') return;
             wordPool = orderingFilterFunctionMap[filterProp](wordPool);
-            // console.log("[random-data.ts,69] filterProp: ", filterProp);
+            console.log("[random-data.ts,69] filterProp: ", filterProp);
             const sub = wordPool.slice(0, 20);
-            // console.log("[random-data.ts,70] sub: ", sub);
+            console.log("[random-data.ts,70] sub: ", sub);
         });
 
         const targetWord = getRandomElement(wordPool);
@@ -103,6 +106,7 @@ export function getRandomWords(amount: number = 10, filters?: WordsFilterConfigu
     }
     function filterByLength(wordPool: string[]): string[] {
         /* B. */
+        if (!wordLength) return wordPool;
         wordPool = wordPool.filter(word => word.length <= wordLength);
         return wordPool;
     }

@@ -29,7 +29,11 @@ export function getFilterConfigurationsForWords(sourceCode: string): WordsFilter
 	if (!text) return defaultFilterConfigurationOutput;
 	try {
 		const asJson = JSON.parse(text) as WordsFilterConfigurationInput;
-		const output = defaultFilterConfigurationOutput;
+		const output = {
+			// to keep the ordering of the properties
+			...asJson,
+			...defaultFilterConfigurationOutput
+		}
 		output.amount = asJson.amount;
 		output.length = asJson.length;
 		if (asJson.repeat) output.repeat = asJson.repeat;
@@ -45,7 +49,7 @@ export function getFilterConfigurationsForWords(sourceCode: string): WordsFilter
 			if (typeof asJson[key] === 'string') {
 				const lettersArr = asJson[key]
 					.split(",")
-					.filter(char => char.trim() !== "");
+					.map(char => char.trim());
 				// @ts-ignore - output has props with number as keys, but we assign them at the start of the try block
 				output[key] = lettersArr;
 			}

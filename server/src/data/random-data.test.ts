@@ -31,7 +31,7 @@ describe('getRandomWords', () => {
             });
             const result = getRandomWords(config.amount, config);
         })
-        test.only('ignore - 2', () => {
+        test('ignore - 2', () => {
             const config = getWordsFilterConfig({
                 amount: 8,
                 length: 4,
@@ -43,6 +43,22 @@ describe('getRandomWords', () => {
             console.log("[random-data.test.ts,43] result: ", result);
             // console.log("[random-data.test.ts,43] result: ", result);
         })
+        test.only('ignore - 3', () => {
+            const config = getWordsFilterConfig({
+                amount: 2,
+                sequence: ['uckled'],
+                oneOf: ['l'],
+                anyOrder: [],
+                // ignore: ['h' , 'o'],
+                ignore: ['v', ' z', ' j', ' h'],
+                repeat: 1,
+                length: undefined
+            });
+            const result = getRandomWords(config.amount, config);
+            console.log("[random-data.test.ts,43] result: ", result);
+            // console.log("[random-data.test.ts,43] result: ", result);
+        })
+
     });
 });
 

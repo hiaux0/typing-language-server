@@ -1,6 +1,8 @@
 /* --------------------------------------------------------------------------------------------
  * Copyright (c) Microsoft Corporation. All rights reserved.
  * Licensed under the MIT License. See License.txt in the project root for license information.
+ * 
+ * Additional changes and modifications by hiaux0, 2024.
  * ------------------------------------------------------------------------------------------ */
 import {
 	createConnection,
@@ -195,7 +197,7 @@ let currentPosition: Position | undefined = undefined;
  * C. Create diagnostics from comparison
  */
 function checkForSpellingErrors(document: TextDocument): Diagnostic[] {
-	console.log("clear");
+	// console.log("clear");
 	console.log("1. ----------------------------");
 	// 1. Get 2 code lines
 	const sourceCode = document.getText();
