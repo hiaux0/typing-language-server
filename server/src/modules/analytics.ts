@@ -42,6 +42,12 @@ export function getWordsFromAnalytics(analyticsMap: TypingAnalyticsMap, word: st
 // const result = getWordsFromAnalytics(map, 'banquets')
 // console.log("[analytics.ts,44] result: ", result.length);
 
+/**
+ * 1. New word
+ * 2. Increase occurrence
+ * 3. Update existing word
+ * 4. Add new typo data
+ */
 export function updateAnalytics(analyticsMap: TypingAnalyticsMap, word: string | undefined, typo: string | undefined) {
     if (!word) return
     if (!typo) return
@@ -141,3 +147,4 @@ function getNewTypoAnalytics(typo: string, mispelled: number): TypoAnalytics {
 //             ]
 //     }
 // }
+

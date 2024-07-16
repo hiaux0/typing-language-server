@@ -254,18 +254,21 @@ function checkForSpellingErrors(document: TextDocument): Diagnostic[] {
 
 			/* 2.3 A. Collect wrong words */
 			const givenWord = getWordAtIndex(givenLine, mispelledIndex)
-			console.log("[server.ts,249] givenWord: ", givenWord);
 			if (givenWord) {
 				wrongWords.add(givenWord);
 			}
 
 			/* 2.4 B.2 Analytics */
-			const wrongWord = getWordAtIndex(remainingLine, mispelledIndex);
-			console.log("[server.ts,256] wrongWord: ", wrongWord);
-			if (currentTypo !== wrongWord) {
-				updateAnalytics(mainAnalyticsMap, givenWord, wrongWord)
+			const typo = getWordAtIndex(remainingLine, mispelledIndex);
+			let isSubstring = false;
+			if (typo && currentTypo) {
+				isSubstring = currentTypo.includes(typo)
 			}
-			currentTypo = wrongWord;
+			/* 2.5 B.3 Don't update when typo already present */
+			if (!isSubstring) {
+				updateAnalytics(mainAnalyticsMap, givenWord, typo)
+			}
+			currentTypo = typo;
 
 			typingDb.writeDb(document.uri, mainAnalyticsMap);
 			const pretty = prettyPrintTypoTableAll(mainAnalyticsMap)
