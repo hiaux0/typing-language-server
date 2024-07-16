@@ -61,11 +61,11 @@ connection.onInitialize((params: InitializeParams) => {
 				interFileDependencies: false,
 				workspaceDiagnostics: false
 			},
-			documentFormattingProvider: true,
-			documentOnTypeFormattingProvider: {
-				"firstTriggerCharacter": "}",
-				"moreTriggerCharacter": [";", ","]
-			}
+			// documentFormattingProvider: true,
+			//documentOnTypeFormattingProvider: {
+			//	"firstTriggerCharacter": "}",
+			//	"moreTriggerCharacter": [";", ","]
+			//}
 		}
 	};
 	return result;
@@ -110,7 +110,7 @@ connection.onDidChangeWatchedFiles(_change => {
 });
 
 connection.languages.diagnostics.on(async (params) => {
-	console.log("[server.ts,102] diagnostics: ");
+	console.log("[server.ts,102] diagnostics.on: ");
 	const document = documents.get(params.textDocument.uri);
 	if (document !== undefined) {
 		const upperCaseItems = await upperCaseValidator(document);
@@ -187,13 +187,15 @@ another block
 
 
 let currentWord: string | undefined = '';
-let currentLine: number | undefined = 0;
+let currentTypo: string | undefined = '';
+let currentPosition: Position | undefined = undefined;
 /**
  * A. Collect wrong words
  * B. Analytics
  * C. Create diagnostics from comparison
  */
 function checkForSpellingErrors(document: TextDocument): Diagnostic[] {
+	console.log("clear");
 	console.log("1. ----------------------------");
 	// 1. Get 2 code lines
 	const sourceCode = document.getText();
@@ -202,61 +204,33 @@ function checkForSpellingErrors(document: TextDocument): Diagnostic[] {
 	const blockText = codeBlockMatch.node.text
 	const paragraphs = getParagraphs(blockText)
 
-	// 2. Create diagnostics from comparison
+	/* 2. Create diagnostics from comparison */
 	const diagnostics: Diagnostic[] = [];
 	paragraphs.forEach((paragraph) => {
+		console.log("-------------------------------------------------------------------");
+		console.log("currentPosition.line: ", currentPosition?.line)
 		const { start: paragraphStart, lines } = paragraph;
-		// // console.log("[server.ts,200] paragraphStart: ", paragraphStart);
 		const [givenLine, ...rest] = lines
 		rest.forEach((remainingLine, lineIndex) => {
-			// Hack: Get the the current line
-			const hasAtLeastOneChar = remainingLine.length > 0;
-			const notCompleted = remainingLine.length < givenLine.length
-			const shouldUpdateCurrentLine = hasAtLeastOneChar && notCompleted;
-			if (!currentLine || shouldUpdateCurrentLine) {
-				currentLine = lineIndex + paragraphStart + 1; // + 1: remainingLines always have a givenLine before them
-			}
-
-			const isAtCurrentLine = currentLine && currentLine - paragraphStart - 1 === lineIndex;
-			if (!isAtCurrentLine) return;
-
-			// // console.log("[server.ts,202] 1. currentLine: ", currentLine);
-			// // console.log("[server.ts,202] 2. isAtCurrentLine: ", isAtCurrentLine);
 			const mispelledIndex = getFirstDifferentCharIndex(givenLine, remainingLine);
+			console.log("[server.ts,213] mispelledIndex: ", mispelledIndex);
+			console.log("[server.ts,215] currentWord: ", currentWord);
 			if (mispelledIndex === undefined) {
 				const currentIndex = remainingLine.length;
 				const wordAtIndex = getWordAtIndex(givenLine, currentIndex);
-				// console.log("[server.ts,222] 3.2 wordAtIndex: ", wordAtIndex);
-				// console.log("[server.ts,225] 3.3 currentWord: ", currentWord);
-				// 2.0 B.1 Analytics
+				console.log("[server.ts,218] wordAtIndex: ", wordAtIndex);
+				/* 2.1 B.1 Analytics */
 				if (!currentWord || currentWord !== wordAtIndex) {
 					currentWord = wordAtIndex
+					console.log("[server.ts,220] currentWord: ", currentWord);
 					updateAnalytics(mainAnalyticsMap, currentWord, currentWord);
 					console.log("[server.ts,215] 4. mainAnalyticsMap: ", mainAnalyticsMap);
 				}
 				return [];
 			}
 
-			// 2.1 A. Collect wrong words
-			const givenWord = getWordAtIndex(givenLine, mispelledIndex)
-			if (givenWord) {
-				wrongWords.add(givenWord);
-			}
-
-			// 2.2 B.2 Analytics
-			const wrongWord = getWordAtIndex(remainingLine, mispelledIndex);
-			// console.log("[server.ts,238] 5.1 wrongWord: ", wrongWord);
-			// console.log("[server.ts,245] 5.2 currentWord: ", currentWord);
-			// console.log("[server.ts,244] 5.3 givenWord: ", givenWord);
-			// if (!wrongWord && )
-			updateAnalytics(mainAnalyticsMap, givenWord, wrongWord)
-
-			typingDb.writeDb(document.uri, mainAnalyticsMap);
-			const pretty = prettyPrintTypoTableAll(mainAnalyticsMap)
-			console.log("open:", JSON.stringify(pretty))
-
-			// 2.3 C. Create diagnostics
-			const startRow = paragraphStart + lineIndex + codeBlockMatch.node.startPosition.row + 1;
+			/* 2.2 C. Create diagnostics */
+			const startRow = convertToAbsoluteLine(paragraphStart, lineIndex);
 			const start = Position.create(startRow, mispelledIndex); // +1 line index start at 0
 			const end = Position.create(startRow, remainingLine.length);
 			const range = {
@@ -270,15 +244,56 @@ function checkForSpellingErrors(document: TextDocument): Diagnostic[] {
 				source: 'Custom LSP'
 			};
 			diagnostics.push(diagnostic);
+
+			console.log("-------------------------------------------------------------------");
+			const isAtCurrentLine = getIsAtCurrentLine(paragraphStart, lineIndex);
+			if (currentPosition === undefined) return;
+			if (!isAtCurrentLine && currentPosition !== undefined) return;
+
+			console.log("[server.ts,232] mispelledIndex: ", mispelledIndex);
+
+			/* 2.3 A. Collect wrong words */
+			const givenWord = getWordAtIndex(givenLine, mispelledIndex)
+			console.log("[server.ts,249] givenWord: ", givenWord);
+			if (givenWord) {
+				wrongWords.add(givenWord);
+			}
+
+			/* 2.4 B.2 Analytics */
+			const wrongWord = getWordAtIndex(remainingLine, mispelledIndex);
+			console.log("[server.ts,256] wrongWord: ", wrongWord);
+			if (currentTypo !== wrongWord) {
+				updateAnalytics(mainAnalyticsMap, givenWord, wrongWord)
+			}
+			currentTypo = wrongWord;
+
+			typingDb.writeDb(document.uri, mainAnalyticsMap);
+			const pretty = prettyPrintTypoTableAll(mainAnalyticsMap)
+			console.log("open:", JSON.stringify(pretty))
+
 		})
 	})
 	return diagnostics;
+
+	function convertToAbsoluteLine(paragraphStart: number, index: number): number {
+		if (!codeBlockMatch) return -1;
+		const blockStart = codeBlockMatch.node.startPosition.row;
+		const asAbsoluteLine = blockStart + paragraphStart + index + 1; // + 1: because an index, always has a givenLine before them;
+		return asAbsoluteLine;
+	}
+
+	function getIsAtCurrentLine(paragraphStart: number, index: number) {
+		const asAbsoluteLine = convertToAbsoluteLine(paragraphStart, index);
+		const isAtCurrentLine = asAbsoluteLine === currentPosition?.line;
+		return isAtCurrentLine;
+	}
 }
 
 
 // This handler provides the initial list of the completion items.
 // TODO: this is always called?! When I was adding diagnostics, the logs here would always print
-connection.onCompletion((_textDocumentPosition: TextDocumentPositionParams): CompletionItem[] => {
+connection.onCompletion((params: TextDocumentPositionParams): CompletionItem[] => {
+	currentPosition = params.position;
 	return [
 		{
 			label: 'words',

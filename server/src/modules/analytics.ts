@@ -67,8 +67,6 @@ export function updateAnalytics(analyticsMap: TypingAnalyticsMap, word: string |
     }
 
     // 2. Increase occurrence
-    console.log("[analytics.ts,48] word: ", word);
-    console.log("[analytics.ts,48] currentWord: ", currentWord);
     if (currentWord !== word) {
         wordData.occurrence += 1;
         currentWord = word;

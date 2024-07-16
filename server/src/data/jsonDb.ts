@@ -32,8 +32,8 @@ export class JsonDb<T> {
             let dir = path.dirname(uri);
             dir = dir.replace('file://', '');
             const dbFilePath = path.join(dir, dbName);
-            console.log("[jsonDb.ts,35] dbFilePath: ", dbFilePath);
-            console.log("[jsonDb.ts,37] asString: ", asString);
+            // console.log("[jsonDb.ts,35] dbFilePath: ", dbFilePath);
+            // console.log("[jsonDb.ts,37] asString: ", asString);
             fs.writeFileSync(dbFilePath, asString, { encoding: 'utf8', flag: 'w+' });
         } catch (error) {
             console.error(error)
