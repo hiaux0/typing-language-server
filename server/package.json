@@ -19,7 +19,8 @@
 	},
 	"scripts": {
 		"watch": "tsc -w",
-		"test": "npx jest --watch"
+		"test": "npx jest --watch",
+		"test:path": "npx jest --watch --testPathPattern"
 	},
 	"devDependencies": {
 		"@types/jest": "^29.5.12",

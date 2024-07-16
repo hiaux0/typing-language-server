@@ -1,0 +1,19 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Normal getRandomWords 1`] = `
+[
+  "rush",
+  "hire",
+  "fair",
+  "pray",
+]
+`;
+
+exports[`Order of config fields 1 1`] = `
+[
+  "rush",
+  "rule",
+  "roof",
+  "sour",
+]
+`;

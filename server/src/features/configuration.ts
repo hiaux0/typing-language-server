@@ -1,11 +1,12 @@
 import { getFencedCodeBlockContentNodeByName } from "../tree-sitter/ts-markdown"
 import { WordsFilterConfigurationInput, WordsFilterConfigurationOutput } from "../types/types";
 
-const defaultFilterConfigurationOutput: WordsFilterConfigurationOutput = {
+export const defaultFilterConfigurationOutput: WordsFilterConfigurationOutput = {
 	amount: 10,
 	length: 999,
+	repeat: 1,
 	ignore: [],
-	inOneWord: [],
+	anyOrder: [],
 	oneOf: [],
 	sequence: [],
 }
@@ -31,9 +32,10 @@ export function getFilterConfigurationsForWords(sourceCode: string): WordsFilter
 		const output = defaultFilterConfigurationOutput;
 		output.amount = asJson.amount;
 		output.length = asJson.length;
+		if (asJson.repeat) output.repeat = asJson.repeat;
 
 		stringToArray("ignore")
-		stringToArray("inOneWord")
+		stringToArray("anyOrder")
 		stringToArray("oneOf")
 		stringToArray("sequence")
 

@@ -1,7 +1,10 @@
+import { defaultFilterConfigurationOutput } from '../features/configuration';
+import { getRandomElement } from '../modules/array';
 import { WordsFilterConfigurationOutput } from '../types/types';
 import * as WordsData from './words.json'
 // const WordsData = ["abc", "hello", "scream", "next", "right", "rest", "raise", "okay", "skim", "scry"]
 
+type WordPool = Record<string, string[]>;
 
 const wordsByLetter = WordsData.reduce((acc, word) => {
     const firstLetter = word[0];
@@ -10,21 +13,31 @@ const wordsByLetter = WordsData.reduce((acc, word) => {
     }
     acc[firstLetter].push(word);
     return acc;
-}, {} as Record<string, string[]>)
+}, {} as WordPool)
+
+
 
 /**
  * A. amount
  * B. length
- * C. letters
+ * C. oneOf
  * D. ignore
  * E. sequence
+ * F. repeat
+ * G. anyOrder
  * 1. Distribution checker
  */
 export function getRandomWords(amount: number = 10, filters?: WordsFilterConfigurationOutput): string[] {
-    const len = WordsData.length;
-
-    if (!filters) {
-        const rndArr = Array.from({ length: amount }, () => Math.floor(Math.random() * len));
+    const finalFilters = {
+        ...defaultFilterConfigurationOutput,
+        ...filters,
+    }
+    /* F. */
+    const finalAmount = finalFilters?.repeat ? Math.round(amount / finalFilters.repeat) : amount;
+    // console.log("[random-data.ts,28] filters: ", filters);
+    if (!finalFilters) {
+        const len = WordsData.length;
+        const rndArr = Array.from({ length: finalAmount }, () => Math.floor(Math.random() * len));
         const chosenWords = rndArr.map(i => WordsData[i]);
         return chosenWords;
     }
@@ -33,74 +46,87 @@ export function getRandomWords(amount: number = 10, filters?: WordsFilterConfigu
     /* 1. */
     // To make sure each oneOf letter is present
     let currentOneOfIndex = 0;
-    let shouldStop = false;
     const wordCollector: Set<string> = new Set();
     /* C. */
-    const oneOfFilter = filters.oneOf.length === 0 ? [""] : filters.oneOf;
-    console.log("[random-data.ts,31] oneOfFilter: ", oneOfFilter);
+    const oneOfFilter = finalFilters.oneOf ?? [];
     // Filter by selecting a random index, then from there find the next word, that matches the filter
     /* D. */
-    const lettersIgnore = filters.ignore;
+    const lettersIgnore = finalFilters.ignore ?? [];
     /* E. */
-    const sequenceFilter = filters.sequence;
-    /* A. */
-    while ((wordCollector.size < amount || shouldStop) && infiniteLoopCounter < WordsData.length) {
-        // while ((wordCollector.size < amount || shouldStop) && infiniteLoopCounter < 10) {
-        const currentOneOfLetter = oneOfFilter[currentOneOfIndex++ % oneOfFilter.length];
-        infiniteLoopCounter++;
+    const sequenceFilter = finalFilters.sequence ?? [];
+    const wordLength = finalFilters.length
+    const orderOfFilterProps = Object.keys(finalFilters);
 
-        const randomIndex = Math.floor(Math.random() * len);
-        let searchedToEnd = true;
-        for (let forwardIndex = randomIndex; forwardIndex < len; forwardIndex++) {
-            const word = applyFilterToWords(forwardIndex, currentOneOfLetter);
-            searchedToEnd = !word;
-            if (word) {
-                console.log("[random-data.ts,52] word: ", word);
-                break;
-            }
-        }
-        const foundAWordSoCanStop = !searchedToEnd;
-        if (foundAWordSoCanStop) {
+    const orderingFilterFunctionMap: Record<string, Function> = {
+        ignore: filterByIgnore,
+        oneOf: filterByOneOf,
+        length: filterByLength,
+        sequence: filterBySequence
+    };
+
+    /* A. */
+    // while ((wordCollector.size < finalAmount) && infiniteLoopCounter < 2) {
+    while ((wordCollector.size < finalAmount) && infiniteLoopCounter < WordsData.length) {
+        // console.log("------------------------------------------------------------");
+        infiniteLoopCounter++;
+        let wordPool = WordsData
+        wordPool = wordPool.filter(word => !wordCollector.has(word));
+
+        orderOfFilterProps.forEach(filterProp => {
+            if (typeof orderingFilterFunctionMap[filterProp] !== 'function') return;
+            wordPool = orderingFilterFunctionMap[filterProp](wordPool);
+            // console.log("[random-data.ts,69] filterProp: ", filterProp);
+            const sub = wordPool.slice(0, 20);
+            // console.log("[random-data.ts,70] sub: ", sub);
+        });
+
+        const targetWord = getRandomElement(wordPool);
+        if (!targetWord) {
+            const popped = orderOfFilterProps.pop();
             continue;
         }
-
-        let searchedToStart = true;
-        for (let backwardsIndex = randomIndex; backwardsIndex > 0; backwardsIndex--) {
-            const word = applyFilterToWords(backwardsIndex, currentOneOfLetter);
-            searchedToEnd = !word
-            if (word) {
-                console.log("[random-data.ts,63] word: ", word);
-                break;
-            }
-        }
-
-        shouldStop = searchedToEnd && searchedToStart; // stop when search to both start and end yielded no more results
+        if (wordCollector.has(targetWord)) continue;
+        // console.log("[random-data.ts,75] targetWord: ", targetWord);
+        wordCollector.add(targetWord);
     }
     const result = Array.from(wordCollector);
+    if (finalFilters.repeat) return doubleResult(result);
+
     return result;
 
-    function applyFilterToWords(index: number, letter: string): string | undefined {
-        if (!filters) return;
-        const wordPool = wordsByLetter[letter] || WordsData;
-        const word = wordPool[index];
-        /* B. */
-        const tooLong = word.length > filters.length;
-        if (tooLong) return;
-        /* D. */
-        const ignored = lettersIgnore.some(filter => word.includes(filter))
-        if (ignored) return;
-        /* E. */
-        if (sequenceFilter.length > 0) {
-            const hasSequence = sequenceFilter.some(filter => word.includes(filter));
-            if (!hasSequence) return;
-        }
+    function filterByOneOf(wordPool: string[]): string[] {
         /* C. */
-        const wordHasLetter = word.includes(letter);
-        if (!wordHasLetter) return;
-        if (wordCollector.has(word)) return;
-        wordCollector.add(word);
-        return word
+        if (oneOfFilter.length === 0) return wordPool;
+        const letter = oneOfFilter[currentOneOfIndex++ % oneOfFilter.length];
+        wordPool = wordPool.filter(word => word.includes(letter));
+        return wordPool;
+    }
+    function filterByLength(wordPool: string[]): string[] {
+        /* B. */
+        wordPool = wordPool.filter(word => word.length <= wordLength);
+        return wordPool;
+    }
+    function filterByIgnore(wordPool: string[]): string[] {
+        /* D. */
+        if (lettersIgnore.length === 0) return wordPool
+        wordPool = wordPool.filter(word => lettersIgnore.every(filter => !word.includes(filter)));
+        return wordPool;
+    }
+    function filterBySequence(wordPool: string[]) {
+        /* E. */
+        if (sequenceFilter.length === 0) return wordPool;
+        const sequence = sequenceFilter[currentOneOfIndex++ % sequenceFilter.length];
+        wordPool = wordPool.filter(word => word.includes(sequence));
+        return wordPool;
+    }
+    function doubleResult(result: string[]): string[] {
+        const doubled: string[] = []
+        result.forEach(word => {
+            for (let i = 0; i < finalFilters.repeat; i++) {
+                doubled.push(word)
+            }
+        })
+        return doubled;
     }
 }
-//const result = getRandomWords(4, { letters: ["r", "s"], length: 3 })
-//// console.log("[random-data.ts,22] result: ", result);
+

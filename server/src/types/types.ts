@@ -52,14 +52,15 @@ export type TypingAnalyticsMap = Record<string, TypingAnalytics>;
 export interface WordsFilterConfigurationInput {
 	amount: number, // amount of words
 	length: number, // length of the word
+	repeat?: number,
 	// letters: string | string[], // "rs" or ["st", "rs"]
-	ignore: string | string[], // "rs" or ["st", "rs"]
-	inOneWord: string | string[], // "rs, at" or ["rs", "at"]
-	oneOf: string | string[], // "rs" or ["r", "s"]
-	sequence: string | string[], // "rs, at" or ["rs", "at"]
+	ignore?: string | string[], // "rs" or ["st", "rs"]
+	anyOrder?: string | string[], // "rs, at" or ["rs", "at"]
+	oneOf?: string | string[], // "rs" or ["r", "s"]
+	sequence?: string | string[], // "rs, at" or ["rs", "at"]
 }
 
-export interface WordsFilterConfigurationOutput extends WordsFilterConfigurationInput {
+export interface WordsFilterConfigurationOutput extends Required<WordsFilterConfigurationInput> {
 	ignore: string[], // "rs" or ["st", "rs"]
 	oneOf: string[], // ["r", "s"]
 	sequence: string[], // ["r", "s"]
