@@ -191,10 +191,12 @@ another block
 let currentWord: string | undefined = '';
 let currentTypo: string | undefined = '';
 let currentPosition: Position | undefined = undefined;
+let totalNumberOfLines = 0;
 const wpmMap: Record<string, { start: number, wpm: number }> = {};
 const NOTIFICATIONS_MESSAGES = {
-	wpm: 'custom/wpm',
-	preventTypo: 'custom/preventTypo',
+	"custom/wpm": 'custom/wpm',
+	"custom/preventTypo": 'custom/preventTypo',
+	"custom/resetWpm": 'custom/resetWpm',
 }
 /**
  * A. Collect wrong words
@@ -211,53 +213,76 @@ function checkForSpellingErrors(document: TextDocument): Diagnostic[] {
 	const blockText = codeBlockMatch.node.text
 	const paragraphs = getParagraphs(blockText)
 
+	totalNumberOfLines = paragraphs.reduce((acc, paragraph) => {
+		return acc + paragraph.lines.length
+	}, 0)
+	totalNumberOfLines -= paragraphs.length // minus all the main lines
+	console.log("[server.ts,216] totalNumberOfLines: ", totalNumberOfLines);
+	/* 2.0 Reset wpm, when lines get deleted */
+	const hasNumberOfLinesReduced = totalNumberOfLines < Object.keys(wpmMap).length;
+	console.log("[server.ts,223] hasNumberOfLinesReduced: ", hasNumberOfLinesReduced);
+	if (hasNumberOfLinesReduced) {
+		console.log("<<<< RESET");
+		connection.sendNotification(NOTIFICATIONS_MESSAGES["custom/resetWpm"]);
+	}
+
 	/* 2. Create diagnostics from comparison */
 	const diagnostics: Diagnostic[] = [];
 	paragraphs.forEach((paragraph) => {
-		console.log("-------------------------------------------------------------------");
+		console.log("1. -------------------------------------------------------------------");
 		const { start: paragraphStart, lines } = paragraph;
-		const [givenLine, ...rest] = lines
+		const [mainLine, ...rest] = lines
 		rest.forEach((remainingLine, lineIndex) => {
-
-			const mispelledIndex = getFirstDifferentCharIndex(givenLine, remainingLine);
-
+			const mispelledIndex = getFirstDifferentCharIndex(mainLine, remainingLine);
 
 			// console.log("[server.ts,217] mispelledIndex: ", mispelledIndex);
 			if (mispelledIndex === undefined) {
 				/* 2.0.1 Start wpm measure */
 				if (currentPosition) {
-					if (currentPosition.character === 1 && !wpmMap[currentPosition.line]) {
+					console.log("2. -----------");
+					console.log("[server.ts,229] currentPosition: ", currentPosition);
+					// if (currentPosition.character === 1 && !wpmMap[currentPosition.line]) {
+					if (!wpmMap[currentPosition.line]) {
 						wpmMap[currentPosition.line] = { start: Date.now(), wpm: -1 }
 					}
 					/* 2.0.2 End wpm measure */
-					const isEndOfLine = remainingLine.length === givenLine.length;
-					// console.log("[server.ts,225] currentPosition: ", currentPosition);
-					// console.log("[server.ts,233] endOfLine: ", isEndOfLine);
+					const isEndOfLine = remainingLine.length === mainLine.length;
+					console.log("[server.ts,236] mainLine: ", mainLine);
+					console.log("[server.ts,236] remainingLine: ", remainingLine);
+					console.log("[server.ts,233] endOfLine: ", isEndOfLine);
+					const absoluteLine = convertToAbsoluteLine(paragraphStart, lineIndex);
+					console.log("[server.ts,240] absoluteLine: ", absoluteLine);
+					console.log("[server.ts,242] wpmMap: ", wpmMap);
+					if (absoluteLine !== currentPosition.line) return;
 					if (isEndOfLine && wpmMap[currentPosition.line].wpm === -1) {
 						const startTime = wpmMap[currentPosition.line];
 						console.log("[server.ts,237] startTime:  ", startTime);
-						const finishTime = Date.now()
-						// console.log("[server.ts,239] finishTime: ", finishTime);
-						const numWords = givenLine.split(" ").length;
+						const finishTime = Date.now();
+						// Hack, due to no reliable way to get the current cursor position
+						if (finishTime === startTime.start) return;
+
+						console.log("[server.ts,239] finishTime: ", finishTime);
+						const numWords = mainLine.split(" ").length;
 						console.log("[server.ts,242] numWords: ", numWords);
 						const delta = ((finishTime - startTime.start) / 1000);
 						console.log("[server.ts,243] delta: ", delta);
 						const perWord = delta / numWords // TODO We're are not counting each word itself, but all words together
 						const wpm = Math.round(60 / perWord)
+						console.log("[server.ts,249] wpm: ", wpm);
 						wpmMap[currentPosition.line].wpm = wpm;
 					}
 				}
 
 				/* 2.0.3 Send wpm to client */
-				if (givenLine.length === remainingLine.length) {
+				if (mainLine.length === remainingLine.length) {
 					const absoluteLine = convertToAbsoluteLine(paragraphStart, lineIndex);
 					// console.log("[server.ts,226] absoluteLine: ", absoluteLine);
-					connection.sendNotification(NOTIFICATIONS_MESSAGES.wpm, { wpmMap, absoluteLine });
+					connection.sendNotification(NOTIFICATIONS_MESSAGES["custom/wpm"], { wpmMap, absoluteLine });
 				}
 
 				/* 2.1 B.1 Analytics */
 				const currentIndex = remainingLine.length;
-				const wordAtIndex = getWordAtIndex(givenLine, currentIndex);
+				const wordAtIndex = getWordAtIndex(mainLine, currentIndex);
 				if (!currentWord || currentWord !== wordAtIndex) {
 					currentWord = wordAtIndex
 					updateAnalytics(mainAnalyticsMap, currentWord, currentWord);
@@ -288,13 +313,13 @@ function checkForSpellingErrors(document: TextDocument): Diagnostic[] {
 			const isMistypedSpace = remainingLine[mispelledIndex] === " ";
 			if (isMistypedSpace) {
 				/* 2.5 B.2 Tell client to prevent typo */
-				connection.sendNotification(NOTIFICATIONS_MESSAGES.preventTypo, { givenLine });
+				connection.sendNotification(NOTIFICATIONS_MESSAGES["custom/preventTypo"], { givenLine: mainLine });
 			}
 			if (currentPosition === undefined) return;
 			if (!isAtCurrentLine && currentPosition !== undefined) return;
 
 			/* 2.3 A. Collect wrong words */
-			const givenWord = getWordAtIndex(givenLine, mispelledIndex)
+			const givenWord = getWordAtIndex(mainLine, mispelledIndex)
 			if (givenWord) {
 				wrongWords.add(givenWord);
 			}
@@ -306,7 +331,7 @@ function checkForSpellingErrors(document: TextDocument): Diagnostic[] {
 			// console.log("[server.ts,264] currentTypo: ", currentTypo);
 			if (typo) {
 				/* 2.5 B.4 Tell client to prevent typo */
-				connection.sendNotification('custom/preventTypo', { givenLine });
+				connection.sendNotification('custom/preventTypo', { givenLine: mainLine });
 			}
 			let isSubstring = false;
 			if (typo && currentTypo) {
