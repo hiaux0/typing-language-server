@@ -191,6 +191,11 @@ another block
 let currentWord: string | undefined = '';
 let currentTypo: string | undefined = '';
 let currentPosition: Position | undefined = undefined;
+const wpmMap: Record<string, { start: number, wpm: number }> = {};
+const NOTIFICATIONS_MESSAGES = {
+	wpm: 'custom/wpm',
+	preventTypo: 'custom/preventTypo',
+}
 /**
  * A. Collect wrong words
  * B. Analytics
@@ -213,19 +218,53 @@ function checkForSpellingErrors(document: TextDocument): Diagnostic[] {
 		const { start: paragraphStart, lines } = paragraph;
 		const [givenLine, ...rest] = lines
 		rest.forEach((remainingLine, lineIndex) => {
+
 			const mispelledIndex = getFirstDifferentCharIndex(givenLine, remainingLine);
-			console.log("[server.ts,217] mispelledIndex: ", mispelledIndex);
+
+
+			// console.log("[server.ts,217] mispelledIndex: ", mispelledIndex);
 			if (mispelledIndex === undefined) {
-				const currentIndex = remainingLine.length;
-				const wordAtIndex = getWordAtIndex(givenLine, currentIndex);
+				/* 2.0.1 Start wpm measure */
+				if (currentPosition) {
+					if (currentPosition.character === 1 && !wpmMap[currentPosition.line]) {
+						wpmMap[currentPosition.line] = { start: Date.now(), wpm: -1 }
+					}
+					/* 2.0.2 End wpm measure */
+					const isEndOfLine = remainingLine.length === givenLine.length;
+					// console.log("[server.ts,225] currentPosition: ", currentPosition);
+					// console.log("[server.ts,233] endOfLine: ", isEndOfLine);
+					if (isEndOfLine && wpmMap[currentPosition.line].wpm === -1) {
+						const startTime = wpmMap[currentPosition.line];
+						console.log("[server.ts,237] startTime:  ", startTime);
+						const finishTime = Date.now()
+						// console.log("[server.ts,239] finishTime: ", finishTime);
+						const numWords = givenLine.split(" ").length;
+						console.log("[server.ts,242] numWords: ", numWords);
+						const delta = ((finishTime - startTime.start) / 1000);
+						console.log("[server.ts,243] delta: ", delta);
+						const perWord = delta / numWords // TODO We're are not counting each word itself, but all words together
+						const wpm = Math.round(60 / perWord)
+						wpmMap[currentPosition.line].wpm = wpm;
+					}
+				}
+
+				/* 2.0.3 Send wpm to client */
+				if (givenLine.length === remainingLine.length) {
+					const absoluteLine = convertToAbsoluteLine(paragraphStart, lineIndex);
+					// console.log("[server.ts,226] absoluteLine: ", absoluteLine);
+					connection.sendNotification(NOTIFICATIONS_MESSAGES.wpm, { wpmMap, absoluteLine });
+				}
 
 				/* 2.1 B.1 Analytics */
+				const currentIndex = remainingLine.length;
+				const wordAtIndex = getWordAtIndex(givenLine, currentIndex);
 				if (!currentWord || currentWord !== wordAtIndex) {
 					currentWord = wordAtIndex
 					updateAnalytics(mainAnalyticsMap, currentWord, currentWord);
 				}
 				return [];
 			}
+
 
 			/* 2.2 C. Create diagnostics */
 			const startRow = convertToAbsoluteLine(paragraphStart, lineIndex);
@@ -244,12 +283,12 @@ function checkForSpellingErrors(document: TextDocument): Diagnostic[] {
 			diagnostics.push(diagnostic);
 
 			const isAtCurrentLine = getIsAtCurrentLine(paragraphStart, lineIndex);
-			console.log("[server.ts,247] isAtCurrentLine: ", isAtCurrentLine);
-			console.log("[server.ts,249] currentPosition: ", currentPosition);
+			// console.log("[server.ts,247] isAtCurrentLine: ", isAtCurrentLine);
+			// console.log("[server.ts,249] currentPosition: ", currentPosition);
 			const isMistypedSpace = remainingLine[mispelledIndex] === " ";
 			if (isMistypedSpace) {
 				/* 2.5 B.2 Tell client to prevent typo */
-				connection.sendNotification('custom/preventTypo', { givenLine });
+				connection.sendNotification(NOTIFICATIONS_MESSAGES.preventTypo, { givenLine });
 			}
 			if (currentPosition === undefined) return;
 			if (!isAtCurrentLine && currentPosition !== undefined) return;
@@ -261,10 +300,10 @@ function checkForSpellingErrors(document: TextDocument): Diagnostic[] {
 			}
 
 			/* 2.4 B.3 Analytics */
-			console.log("[server.ts,260] isMistypedSpace: ", isMistypedSpace);
+			// console.log("[server.ts,260] isMistypedSpace: ", isMistypedSpace);
 			const typo = getWordAtIndex(remainingLine, mispelledIndex);
-			console.log("[server.ts,262] typo: ", typo);
-			console.log("[server.ts,264] currentTypo: ", currentTypo);
+			// console.log("[server.ts,262] typo: ", typo);
+			// console.log("[server.ts,264] currentTypo: ", currentTypo);
 			if (typo) {
 				/* 2.5 B.4 Tell client to prevent typo */
 				connection.sendNotification('custom/preventTypo', { givenLine });
@@ -282,7 +321,6 @@ function checkForSpellingErrors(document: TextDocument): Diagnostic[] {
 			typingDb.writeDb(document.uri, mainAnalyticsMap);
 			const pretty = prettyPrintTypoTableAll(mainAnalyticsMap)
 			// console.log("open:", JSON.stringify(pretty))
-
 		})
 	})
 	return diagnostics;
@@ -301,6 +339,11 @@ function checkForSpellingErrors(document: TextDocument): Diagnostic[] {
 	}
 }
 
+
+connection.onDidChangeTextDocument((params) => {
+	console.log(">>>>>>>>>>>>>>>>>>>>>>>>>>>>");
+	// console.log("[server.ts,337] params: ", params);
+})
 
 // This handler provides the initial list of the completion items.
 // TODO: this is always called?! When I was adding diagnostics, the logs here would always print
