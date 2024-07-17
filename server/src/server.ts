@@ -198,7 +198,7 @@ let currentPosition: Position | undefined = undefined;
  */
 function checkForSpellingErrors(document: TextDocument): Diagnostic[] {
 	// console.log("clear");
-	console.log("1. ----------------------------");
+	// console.log("1. ----------------------------");
 	// 1. Get 2 code lines
 	const sourceCode = document.getText();
 	const codeBlockMatch = getFencedCodeBlockContentNodeByName(sourceCode, "typing");
@@ -209,24 +209,19 @@ function checkForSpellingErrors(document: TextDocument): Diagnostic[] {
 	/* 2. Create diagnostics from comparison */
 	const diagnostics: Diagnostic[] = [];
 	paragraphs.forEach((paragraph) => {
-		console.log("-------------------------------------------------------------------");
-		console.log("currentPosition.line: ", currentPosition?.line)
+		// console.log("-------------------------------------------------------------------");
 		const { start: paragraphStart, lines } = paragraph;
 		const [givenLine, ...rest] = lines
 		rest.forEach((remainingLine, lineIndex) => {
 			const mispelledIndex = getFirstDifferentCharIndex(givenLine, remainingLine);
-			console.log("[server.ts,213] mispelledIndex: ", mispelledIndex);
-			console.log("[server.ts,215] currentWord: ", currentWord);
 			if (mispelledIndex === undefined) {
 				const currentIndex = remainingLine.length;
 				const wordAtIndex = getWordAtIndex(givenLine, currentIndex);
-				console.log("[server.ts,218] wordAtIndex: ", wordAtIndex);
+
 				/* 2.1 B.1 Analytics */
 				if (!currentWord || currentWord !== wordAtIndex) {
 					currentWord = wordAtIndex
-					console.log("[server.ts,220] currentWord: ", currentWord);
 					updateAnalytics(mainAnalyticsMap, currentWord, currentWord);
-					console.log("[server.ts,215] 4. mainAnalyticsMap: ", mainAnalyticsMap);
 				}
 				return [];
 			}
@@ -247,38 +242,32 @@ function checkForSpellingErrors(document: TextDocument): Diagnostic[] {
 			};
 			diagnostics.push(diagnostic);
 
-			console.log("-------------------------------------------------------------------");
 			const isAtCurrentLine = getIsAtCurrentLine(paragraphStart, lineIndex);
 			if (currentPosition === undefined) return;
 			if (!isAtCurrentLine && currentPosition !== undefined) return;
 
-			console.log("[server.ts,232] mispelledIndex: ", mispelledIndex);
-
 			/* 2.3 A. Collect wrong words */
 			const givenWord = getWordAtIndex(givenLine, mispelledIndex)
-			console.log("[server.ts,257] givenWord: ", givenWord);
-			console.log("[server.ts,259] currentWord: ", currentWord);
 			if (givenWord) {
 				wrongWords.add(givenWord);
 			}
 
 			/* 2.4 B.2 Analytics */
 			const typo = getWordAtIndex(remainingLine, mispelledIndex);
-			console.log("[server.ts,263] typo: ", typo);
 			let isSubstring = false;
 			if (typo && currentTypo) {
+				/* 2.5 B.3 Don't update when typo already present */
+				connection.sendNotification('custom/preventTypo', { givenLine });
 				isSubstring = currentTypo.includes(typo)
 			}
-			/* 2.5 B.3 Don't update when typo already present */
 			if (!isSubstring) {
-				connection.sendNotification('custom/preventTypo');
 				updateAnalytics(mainAnalyticsMap, givenWord, typo)
 			}
 			currentTypo = typo;
 
 			typingDb.writeDb(document.uri, mainAnalyticsMap);
 			const pretty = prettyPrintTypoTableAll(mainAnalyticsMap)
-			console.log("open:", JSON.stringify(pretty))
+			// console.log("open:", JSON.stringify(pretty))
 
 		})
 	})
@@ -324,10 +313,10 @@ connection.onCompletionResolve(
 		if (item.label === "clear") {
 			wrongWords.clear();
 		} else if (item.label === 'words') {
-			console.log("[server.ts,307] filterConfig: ", filterConfig);
+
 			// const randomWords = getRandomWords(filterConfig.amount).join(" ");
 			const randomWords = getRandomWords(filterConfig.amount, filterConfig)?.join(" ") ?? "no words for given filter found";
-			// console.log("[server.ts,310] randomWords: ", randomWords);
+
 			item.insertText = randomWords
 			item.detail = randomWords
 			mainAnalyticsMap = {}
