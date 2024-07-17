@@ -209,11 +209,12 @@ function checkForSpellingErrors(document: TextDocument): Diagnostic[] {
 	/* 2. Create diagnostics from comparison */
 	const diagnostics: Diagnostic[] = [];
 	paragraphs.forEach((paragraph) => {
-		// console.log("-------------------------------------------------------------------");
+		console.log("-------------------------------------------------------------------");
 		const { start: paragraphStart, lines } = paragraph;
 		const [givenLine, ...rest] = lines
 		rest.forEach((remainingLine, lineIndex) => {
 			const mispelledIndex = getFirstDifferentCharIndex(givenLine, remainingLine);
+			console.log("[server.ts,217] mispelledIndex: ", mispelledIndex);
 			if (mispelledIndex === undefined) {
 				const currentIndex = remainingLine.length;
 				const wordAtIndex = getWordAtIndex(givenLine, currentIndex);
@@ -243,6 +244,13 @@ function checkForSpellingErrors(document: TextDocument): Diagnostic[] {
 			diagnostics.push(diagnostic);
 
 			const isAtCurrentLine = getIsAtCurrentLine(paragraphStart, lineIndex);
+			console.log("[server.ts,247] isAtCurrentLine: ", isAtCurrentLine);
+			console.log("[server.ts,249] currentPosition: ", currentPosition);
+			const isMistypedSpace = remainingLine[mispelledIndex] === " ";
+			if (isMistypedSpace) {
+				/* 2.5 B.2 Tell client to prevent typo */
+				connection.sendNotification('custom/preventTypo', { givenLine });
+			}
 			if (currentPosition === undefined) return;
 			if (!isAtCurrentLine && currentPosition !== undefined) return;
 
@@ -252,14 +260,20 @@ function checkForSpellingErrors(document: TextDocument): Diagnostic[] {
 				wrongWords.add(givenWord);
 			}
 
-			/* 2.4 B.2 Analytics */
+			/* 2.4 B.3 Analytics */
+			console.log("[server.ts,260] isMistypedSpace: ", isMistypedSpace);
 			const typo = getWordAtIndex(remainingLine, mispelledIndex);
+			console.log("[server.ts,262] typo: ", typo);
+			console.log("[server.ts,264] currentTypo: ", currentTypo);
+			if (typo) {
+				/* 2.5 B.4 Tell client to prevent typo */
+				connection.sendNotification('custom/preventTypo', { givenLine });
+			}
 			let isSubstring = false;
 			if (typo && currentTypo) {
-				/* 2.5 B.3 Don't update when typo already present */
-				connection.sendNotification('custom/preventTypo', { givenLine });
 				isSubstring = currentTypo.includes(typo)
 			}
+			/* 2.5 B.5 Don't update when typo already present */
 			if (!isSubstring) {
 				updateAnalytics(mainAnalyticsMap, givenWord, typo)
 			}
@@ -267,7 +281,7 @@ function checkForSpellingErrors(document: TextDocument): Diagnostic[] {
 
 			typingDb.writeDb(document.uri, mainAnalyticsMap);
 			const pretty = prettyPrintTypoTableAll(mainAnalyticsMap)
-			console.log("open:", JSON.stringify(pretty))
+			// console.log("open:", JSON.stringify(pretty))
 
 		})
 	})

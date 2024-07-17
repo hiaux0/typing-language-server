@@ -49,7 +49,8 @@ export function getFilterConfigurationsForWords(sourceCode: string): WordsFilter
 
 		function stringToArray(key: keyof WordsFilterConfigurationOutput): void {
 			if (typeof asJson[key] === 'string') {
-				const lettersArr = asJson[key]
+				const value = asJson[key] as string
+				const lettersArr = value
 					.split(",")
 					.map(char => char.trim());
 				// @ts-ignore - output has props with number as keys, but we assign them at the start of the try block
