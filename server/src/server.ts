@@ -267,7 +267,7 @@ function checkForSpellingErrors(document: TextDocument): Diagnostic[] {
 
 			typingDb.writeDb(document.uri, mainAnalyticsMap);
 			const pretty = prettyPrintTypoTableAll(mainAnalyticsMap)
-			// console.log("open:", JSON.stringify(pretty))
+			console.log("open:", JSON.stringify(pretty))
 
 		})
 	})

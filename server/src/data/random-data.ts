@@ -1,21 +1,20 @@
 import { defaultFilterConfigurationOutput } from '../features/configuration';
 import { getRandomElement } from '../modules/array';
-import { WordsFilterConfigurationOutput } from '../types/types';
+import { TypingLessons, WordsFilterConfigurationOutput } from '../types/types';
 import * as WordsData from './words.json'
 // const WordsData = ["abc", "hello", "scream", "next", "right", "rest", "raise", "okay", "skim", "scry"]
 
-type WordPool = Record<string, string[]>;
+const lessonsMap: Record<TypingLessons, string[]> = {
+    words: WordsData,
+    alphabet: ["abcdefghijklmnopqrstuvwxyz"],
+    ["alphabet-chunks"]: ["abcdefghijklmnopqrstuvwxyz"],
+    bigrams: [],
+    vim: ["xp", "ciw", "diw", "viw", "dk",]
+}
 
-const wordsByLetter = WordsData.reduce((acc, word) => {
-    const firstLetter = word[0];
-    if (!acc[firstLetter]) {
-        acc[firstLetter] = [];
-    }
-    acc[firstLetter].push(word);
-    return acc;
-}, {} as WordPool)
-
-
+export function getRandoNumber(min: number, max: number): number {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+}
 
 /**
  * A. amount
@@ -25,16 +24,18 @@ const wordsByLetter = WordsData.reduce((acc, word) => {
  * E. sequence
  * F. repeat
  * G. anyOrder
+ * H. Alphabet chunks
  * 1. Distribution checker
  */
 export function getRandomWords(amount: number = 10, filters?: WordsFilterConfigurationOutput): string[] {
+    console.log("[random-data.ts,30] filters: ", filters);
     const finalFilters = {
         ...defaultFilterConfigurationOutput,
         ...filters,
     }
     /* F. */
     const finalAmount = finalFilters?.repeat ? Math.round(amount / finalFilters.repeat) : amount;
-    // console.log("[random-data.ts,28] filters: ", filters);
+    // // console.log("[random-data.ts,28] filters: ", filters);
     if (!finalFilters) {
         const len = WordsData.length;
         const rndArr = Array.from({ length: finalAmount }, () => Math.floor(Math.random() * len));
@@ -52,13 +53,13 @@ export function getRandomWords(amount: number = 10, filters?: WordsFilterConfigu
     // Filter by selecting a random index, then from there find the next word, that matches the filter
     /* D. */
     const lettersIgnore = finalFilters.ignore ?? [];
-    console.log("[random-data.ts,55] lettersIgnore: ", lettersIgnore);
+    // console.log("[random-data.ts,55] lettersIgnore: ", lettersIgnore);
     /* E. */
     const sequenceFilter = finalFilters.sequence ?? [];
     const wordLength = finalFilters.length
-    console.log("[random-data.ts,58] wordLength: ", wordLength);
+    // console.log("[random-data.ts,58] wordLength: ", wordLength);
     const orderOfFilterProps = Object.keys(finalFilters);
-    console.log("[random-data.ts,60] orderOfFilterProps: ", orderOfFilterProps);
+    // console.log("[random-data.ts,60] orderOfFilterProps: ", orderOfFilterProps);
 
     const orderingFilterFunctionMap: Record<string, Function> = {
         ignore: filterByIgnore,
@@ -72,25 +73,38 @@ export function getRandomWords(amount: number = 10, filters?: WordsFilterConfigu
     while ((wordCollector.size < finalAmount) && infiniteLoopCounter < WordsData.length) {
         console.log("------------------------------------------------------------");
         infiniteLoopCounter++;
-        let wordPool = WordsData
+        let wordPool = lessonsMap[finalFilters.lesson];
         wordPool = wordPool.filter(word => !wordCollector.has(word));
 
-        orderOfFilterProps.forEach(filterProp => {
-            if (typeof orderingFilterFunctionMap[filterProp] !== 'function') return;
-            wordPool = orderingFilterFunctionMap[filterProp](wordPool);
-            console.log("[random-data.ts,69] filterProp: ", filterProp);
-            const sub = wordPool.slice(0, 20);
-            console.log("[random-data.ts,70] sub: ", sub);
-        });
-
-        const targetWord = getRandomElement(wordPool);
-        if (!targetWord) {
-            const popped = orderOfFilterProps.pop();
-            continue;
+        /* H. */
+        if (filters?.lesson === 'alphabet-chunks') {
+            const alphabet = wordPool[0];
+            const max = alphabet.length - filters.length;
+            const randomIndex = getRandoNumber(0, max);
+            const targetWord = alphabet.slice(randomIndex, randomIndex + filters.length);
+            if (!targetWord) {
+                continue;
+            }
+            if (wordCollector.has(targetWord)) continue;
+            wordCollector.add(targetWord);
+        } else {
+            orderOfFilterProps.forEach(filterProp => {
+                if (typeof orderingFilterFunctionMap[filterProp] !== 'function') return;
+                wordPool = orderingFilterFunctionMap[filterProp](wordPool);
+                // console.log("[random-data.ts,69] filterProp: ", filterProp);
+                const sub = wordPool.slice(0, 20);
+                // console.log("[random-data.ts,70] sub: ", sub);
+            });
+            const targetWord = getRandomElement(wordPool);
+            if (!targetWord) {
+                orderOfFilterProps.pop();
+                continue;
+            }
+            if (wordCollector.has(targetWord)) continue;
+            // // console.log("[random-data.ts,75] targetWord: ", targetWord);
+            wordCollector.add(targetWord);
         }
-        if (wordCollector.has(targetWord)) continue;
-        // console.log("[random-data.ts,75] targetWord: ", targetWord);
-        wordCollector.add(targetWord);
+
     }
     const result = Array.from(wordCollector);
     if (finalFilters.repeat) return doubleResult(result);

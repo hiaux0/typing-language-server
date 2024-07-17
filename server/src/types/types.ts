@@ -48,8 +48,9 @@ export interface TypingAnalytics {
 // export type AnalyticsMap = Map<string, Analytics>;
 export type TypingAnalyticsMap = Record<string, TypingAnalytics>;
 
-
+export type TypingLessons = "words" | "alphabet" | "alphabet-chunks" | "bigrams" | "vim";
 export interface WordsFilterConfigurationInput {
+	lesson?: TypingLessons,
 	amount: number, // amount of words
 	length: number, // length of the word
 	repeat?: number,

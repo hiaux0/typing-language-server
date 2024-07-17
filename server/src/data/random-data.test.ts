@@ -2,6 +2,7 @@ import { defaultFilterConfigurationOutput } from "../features/configuration";
 import { WordsFilterConfigurationOutput } from "../types/types";
 import { getRandomWords } from "./random-data";
 
+const ALPHABET = 'abcdefghijklmnopqrstuvwxyz';
 const baseConfig: WordsFilterConfigurationOutput = defaultFilterConfigurationOutput
 function getWordsFilterConfig(config: Partial<WordsFilterConfigurationOutput>): WordsFilterConfigurationOutput {
     return {
@@ -43,7 +44,7 @@ describe('getRandomWords', () => {
             console.log("[random-data.test.ts,43] result: ", result);
             // console.log("[random-data.test.ts,43] result: ", result);
         })
-        test.only('ignore - 3', () => {
+        test('ignore - 3', () => {
             const config = getWordsFilterConfig({
                 amount: 2,
                 sequence: ['uckled'],
@@ -98,5 +99,33 @@ describe('Order of config fields', () => {
         expect(first).toHaveLength(5);
         const okay = rest.every(word => word.includes("sh"));
         expect(okay).toBe(true);
+    });
+});
+
+describe('Lessons', () => {
+    describe('alphabet', () => {
+        test('alphabet - 1', () => {
+            const config = getWordsFilterConfig({
+                lesson: 'alphabet',
+            });
+            const result = getRandomWords(config.amount, config);
+            expect(result[0]).toBe(ALPHABET)
+        });
+    });
+
+    describe.only('alphabet-chunks', () => {
+        test('alphabet - 1', () => {
+            const config = getWordsFilterConfig({
+                lesson: 'alphabet-chunks',
+                amount: 4,
+                length: 4,
+            });
+            const result = getRandomWords(config.amount, config);
+            expect(result.length).toBe(4);
+            const lengthOkay = result.every(word => word.length === 4);
+            const chunkOkay = result.every(word => ALPHABET.includes(word))
+            expect(lengthOkay).toBe(true);
+            expect(chunkOkay).toBe(true);
+        });
     });
 });

@@ -20,7 +20,8 @@
 	"scripts": {
 		"watch": "tsc -w",
 		"test": "npx jest --watch",
-		"test:path": "npx jest --watch --testPathPattern"
+		"test:path": "npx jest --watch --testPathPattern",
+		"test:single": "npx jest --watch --testPathPattern 'random'"
 	},
 	"devDependencies": {
 		"@types/jest": "^29.5.12",

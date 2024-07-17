@@ -2,6 +2,7 @@ import { getFencedCodeBlockContentNodeByName } from "../tree-sitter/ts-markdown"
 import { WordsFilterConfigurationInput, WordsFilterConfigurationOutput } from "../types/types";
 
 export const defaultFilterConfigurationOutput: WordsFilterConfigurationOutput = {
+	lesson: "words",
 	amount: 10,
 	length: 999,
 	repeat: 1,
@@ -36,6 +37,7 @@ export function getFilterConfigurationsForWords(sourceCode: string): WordsFilter
 		}
 		output.amount = asJson.amount;
 		output.length = asJson.length;
+		if (asJson.lesson) output.lesson = asJson.lesson;
 		if (asJson.repeat) output.repeat = asJson.repeat;
 
 		stringToArray("ignore")
