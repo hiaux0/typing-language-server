@@ -8,6 +8,7 @@ const lessonsMap: Record<TypingLessons, string[]> = {
     words: WordsData,
     alphabet: ["abcdefghijklmnopqrstuvwxyz"],
     ["alphabet-chunks"]: ["abcdefghijklmnopqrstuvwxyz"],
+    ["ac"]: ["abcdefghijklmnopqrstuvwxyz"],
     bigrams: [],
     vim: ["xp", "ciw", "diw", "viw", "dk",]
 }
@@ -28,7 +29,6 @@ export function getRandoNumber(min: number, max: number): number {
  * 1. Distribution checker
  */
 export function getRandomWords(amount: number = 10, filters?: WordsFilterConfigurationOutput): string[] {
-    console.log("[random-data.ts,30] filters: ", filters);
     const finalFilters = {
         ...defaultFilterConfigurationOutput,
         ...filters,
@@ -71,13 +71,13 @@ export function getRandomWords(amount: number = 10, filters?: WordsFilterConfigu
     /* A. */
     // while ((wordCollector.size < finalAmount) && infiniteLoopCounter < 2) {
     while ((wordCollector.size < finalAmount) && infiniteLoopCounter < WordsData.length) {
-        console.log("------------------------------------------------------------");
+        // console.log("------------------------------------------------------------");
         infiniteLoopCounter++;
         let wordPool = lessonsMap[finalFilters.lesson];
         wordPool = wordPool.filter(word => !wordCollector.has(word));
 
         /* H. */
-        if (filters?.lesson === 'alphabet-chunks') {
+        if (filters?.lesson === 'alphabet-chunks' || filters?.lesson === 'ac') {
             const alphabet = wordPool[0];
             const max = alphabet.length - filters.length;
             const randomIndex = getRandoNumber(0, max);

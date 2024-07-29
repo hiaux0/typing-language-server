@@ -48,12 +48,19 @@ export interface TypingAnalytics {
 // export type AnalyticsMap = Map<string, Analytics>;
 export type TypingAnalyticsMap = Record<string, TypingAnalytics>;
 
-export type TypingLessons = "words" | "alphabet" | "alphabet-chunks" | "bigrams" | "vim";
+export type TypingLessons =
+	"words" |
+	"alphabet" | // abcdefghijklmnopqrstuvwxyz
+	"alphabet-chunks" | // chunks of alphabet
+	"ac" | // alphabet-chunks
+	"bigrams" | // todo
+	"vim"; // todo
 export interface WordsFilterConfigurationInput {
 	lesson?: TypingLessons,
 	amount: number, // amount of words
 	length: number, // length of the word
 	repeat?: number,
+	clearOnError?: boolean,
 	// letters: string | string[], // "rs" or ["st", "rs"]
 	ignore?: string | string[], // "rs" or ["st", "rs"]
 	anyOrder?: string | string[], // "rs, at" or ["rs", "at"]

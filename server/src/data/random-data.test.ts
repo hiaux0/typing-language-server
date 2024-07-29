@@ -113,7 +113,7 @@ describe('Lessons', () => {
         });
     });
 
-    describe.only('alphabet-chunks', () => {
+    describe('alphabet-chunks', () => {
         test('alphabet - 1', () => {
             const config = getWordsFilterConfig({
                 lesson: 'alphabet-chunks',

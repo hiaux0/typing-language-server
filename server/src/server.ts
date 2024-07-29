@@ -112,11 +112,10 @@ connection.onDidChangeWatchedFiles(_change => {
 });
 
 connection.languages.diagnostics.on(async (params) => {
-	console.log("[server.ts,102] diagnostics.on: ");
 	const document = documents.get(params.textDocument.uri);
 	if (document !== undefined) {
 		const upperCaseItems = await upperCaseValidator(document);
-		const spellingMistakes = checkForSpellingErrors(document);
+		const spellingMistakes = checkForSpellingErrors(document, filterConfig);
 		// const spellingMistakes = [] as any
 		const items = [...upperCaseItems, ...spellingMistakes]
 		return {
@@ -192,9 +191,10 @@ let currentWord: string | undefined = '';
 let currentTypo: string | undefined = '';
 let currentPosition: Position | undefined = undefined;
 let totalNumberOfLines = 0;
-const wpmMap: Record<string, { start: number, wpm: number }> = {};
+let wpmMap: Record<string, { start: number, wpm: number }> = {};
 const NOTIFICATIONS_MESSAGES = {
 	"custom/wpm": 'custom/wpm',
+	"custom/clearLine": 'custom/clearLine',
 	"custom/preventTypo": 'custom/preventTypo',
 	"custom/resetWpm": 'custom/resetWpm',
 }
@@ -203,7 +203,7 @@ const NOTIFICATIONS_MESSAGES = {
  * B. Analytics
  * C. Create diagnostics from comparison
  */
-function checkForSpellingErrors(document: TextDocument): Diagnostic[] {
+function checkForSpellingErrors(document: TextDocument, filters?: WordsFilterConfigurationOutput): Diagnostic[] {
 	// console.log("clear");
 	// console.log("1. ----------------------------");
 	// 1. Get 2 code lines
@@ -217,58 +217,59 @@ function checkForSpellingErrors(document: TextDocument): Diagnostic[] {
 		return acc + paragraph.lines.length
 	}, 0)
 	totalNumberOfLines -= paragraphs.length // minus all the main lines
-	console.log("[server.ts,216] totalNumberOfLines: ", totalNumberOfLines);
+	// console.log("[server.ts,216] totalNumberOfLines: ", totalNumberOfLines);
 	/* 2.0 Reset wpm, when lines get deleted */
 	const hasNumberOfLinesReduced = totalNumberOfLines < Object.keys(wpmMap).length;
-	console.log("[server.ts,223] hasNumberOfLinesReduced: ", hasNumberOfLinesReduced);
+	// console.log("[server.ts,223] hasNumberOfLinesReduced: ", hasNumberOfLinesReduced);
 	if (hasNumberOfLinesReduced) {
-		console.log("<<<< RESET");
+		// console.log("<<<< RESET");
 		connection.sendNotification(NOTIFICATIONS_MESSAGES["custom/resetWpm"]);
+		wpmMap = {};
 	}
 
 	/* 2. Create diagnostics from comparison */
 	const diagnostics: Diagnostic[] = [];
 	paragraphs.forEach((paragraph) => {
-		console.log("1. -------------------------------------------------------------------");
+		// console.log("1. -------------------------------------------------------------------");
 		const { start: paragraphStart, lines } = paragraph;
 		const [mainLine, ...rest] = lines
 		rest.forEach((remainingLine, lineIndex) => {
 			const mispelledIndex = getFirstDifferentCharIndex(mainLine, remainingLine);
 
-			// console.log("[server.ts,217] mispelledIndex: ", mispelledIndex);
+			// // console.log("[server.ts,217] mispelledIndex: ", mispelledIndex);
 			if (mispelledIndex === undefined) {
 				/* 2.0.1 Start wpm measure */
 				if (currentPosition) {
-					console.log("2. -----------");
-					console.log("[server.ts,229] currentPosition: ", currentPosition);
+					// console.log("2. -----------");
+					// console.log("[server.ts,229] currentPosition: ", currentPosition);
 					// if (currentPosition.character === 1 && !wpmMap[currentPosition.line]) {
 					if (!wpmMap[currentPosition.line]) {
 						wpmMap[currentPosition.line] = { start: Date.now(), wpm: -1 }
 					}
 					/* 2.0.2 End wpm measure */
 					const isEndOfLine = remainingLine.length === mainLine.length;
-					console.log("[server.ts,236] mainLine: ", mainLine);
-					console.log("[server.ts,236] remainingLine: ", remainingLine);
-					console.log("[server.ts,233] endOfLine: ", isEndOfLine);
+					// console.log("[server.ts,236] mainLine: ", mainLine);
+					// console.log("[server.ts,236] remainingLine: ", remainingLine);
+					// console.log("[server.ts,233] endOfLine: ", isEndOfLine);
 					const absoluteLine = convertToAbsoluteLine(paragraphStart, lineIndex);
-					console.log("[server.ts,240] absoluteLine: ", absoluteLine);
-					console.log("[server.ts,242] wpmMap: ", wpmMap);
+					// console.log("[server.ts,240] absoluteLine: ", absoluteLine);
+					// console.log("[server.ts,242] wpmMap: ", wpmMap);
 					if (absoluteLine !== currentPosition.line) return;
 					if (isEndOfLine && wpmMap[currentPosition.line].wpm === -1) {
 						const startTime = wpmMap[currentPosition.line];
-						console.log("[server.ts,237] startTime:  ", startTime);
+						// console.log("[server.ts,237] startTime:  ", startTime);
 						const finishTime = Date.now();
 						// Hack, due to no reliable way to get the current cursor position
 						if (finishTime === startTime.start) return;
 
-						console.log("[server.ts,239] finishTime: ", finishTime);
+						// console.log("[server.ts,239] finishTime: ", finishTime);
 						const numWords = mainLine.split(" ").length;
-						console.log("[server.ts,242] numWords: ", numWords);
+						// console.log("[server.ts,242] numWords: ", numWords);
 						const delta = ((finishTime - startTime.start) / 1000);
-						console.log("[server.ts,243] delta: ", delta);
+						// console.log("[server.ts,243] delta: ", delta);
 						const perWord = delta / numWords // TODO We're are not counting each word itself, but all words together
 						const wpm = Math.round(60 / perWord)
-						console.log("[server.ts,249] wpm: ", wpm);
+						// console.log("[server.ts,249] wpm: ", wpm);
 						wpmMap[currentPosition.line].wpm = wpm;
 					}
 				}
@@ -276,7 +277,7 @@ function checkForSpellingErrors(document: TextDocument): Diagnostic[] {
 				/* 2.0.3 Send wpm to client */
 				if (mainLine.length === remainingLine.length) {
 					const absoluteLine = convertToAbsoluteLine(paragraphStart, lineIndex);
-					// console.log("[server.ts,226] absoluteLine: ", absoluteLine);
+					// // console.log("[server.ts,226] absoluteLine: ", absoluteLine);
 					connection.sendNotification(NOTIFICATIONS_MESSAGES["custom/wpm"], { wpmMap, absoluteLine });
 				}
 
@@ -290,6 +291,11 @@ function checkForSpellingErrors(document: TextDocument): Diagnostic[] {
 				return [];
 			}
 
+			console.log("[server.ts,295] filters: ", filters);
+			if (filters?.clearOnError) {
+				connection.sendNotification(NOTIFICATIONS_MESSAGES["custom/clearLine"]);
+				return;
+			}
 
 			/* 2.2 C. Create diagnostics */
 			const startRow = convertToAbsoluteLine(paragraphStart, lineIndex);
@@ -308,8 +314,8 @@ function checkForSpellingErrors(document: TextDocument): Diagnostic[] {
 			diagnostics.push(diagnostic);
 
 			const isAtCurrentLine = getIsAtCurrentLine(paragraphStart, lineIndex);
-			// console.log("[server.ts,247] isAtCurrentLine: ", isAtCurrentLine);
-			// console.log("[server.ts,249] currentPosition: ", currentPosition);
+			// // console.log("[server.ts,247] isAtCurrentLine: ", isAtCurrentLine);
+			// // console.log("[server.ts,249] currentPosition: ", currentPosition);
 			const isMistypedSpace = remainingLine[mispelledIndex] === " ";
 			if (isMistypedSpace) {
 				/* 2.5 B.2 Tell client to prevent typo */
@@ -325,13 +331,13 @@ function checkForSpellingErrors(document: TextDocument): Diagnostic[] {
 			}
 
 			/* 2.4 B.3 Analytics */
-			// console.log("[server.ts,260] isMistypedSpace: ", isMistypedSpace);
+			// // console.log("[server.ts,260] isMistypedSpace: ", isMistypedSpace);
 			const typo = getWordAtIndex(remainingLine, mispelledIndex);
-			// console.log("[server.ts,262] typo: ", typo);
-			// console.log("[server.ts,264] currentTypo: ", currentTypo);
+			// // console.log("[server.ts,262] typo: ", typo);
+			// // console.log("[server.ts,264] currentTypo: ", currentTypo);
 			if (typo) {
 				/* 2.5 B.4 Tell client to prevent typo */
-				connection.sendNotification('custom/preventTypo', { givenLine: mainLine });
+				connection.sendNotification(NOTIFICATIONS_MESSAGES["custom/preventTypo"], { givenLine: mainLine });
 			}
 			let isSubstring = false;
 			if (typo && currentTypo) {
@@ -366,8 +372,8 @@ function checkForSpellingErrors(document: TextDocument): Diagnostic[] {
 
 
 connection.onDidChangeTextDocument((params) => {
-	console.log(">>>>>>>>>>>>>>>>>>>>>>>>>>>>");
-	// console.log("[server.ts,337] params: ", params);
+	// console.log(">>>>>>>>>>>>>>>>>>>>>>>>>>>>");
+	// // console.log("[server.ts,337] params: ", params);
 })
 
 // This handler provides the initial list of the completion items.
@@ -395,7 +401,6 @@ connection.onCompletionResolve(
 		if (item.label === "clear") {
 			wrongWords.clear();
 		} else if (item.label === 'words') {
-
 			// const randomWords = getRandomWords(filterConfig.amount).join(" ");
 			const randomWords = getRandomWords(filterConfig.amount, filterConfig)?.join(" ") ?? "no words for given filter found";
 
