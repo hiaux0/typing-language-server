@@ -61,6 +61,7 @@ export interface WordsFilterConfigurationInput {
 	length: number, // length of the word
 	repeat?: number,
 	clearOnError?: boolean,
+	autoNewWords?: boolean,
 	// letters: string | string[], // "rs" or ["st", "rs"]
 	ignore?: string | string[], // "rs" or ["st", "rs"]
 	anyOrder?: string | string[], // "rs, at" or ["rs", "at"]

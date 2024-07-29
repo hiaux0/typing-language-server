@@ -195,23 +195,26 @@ let wpmMap: Record<string, { start: number, wpm: number }> = {};
 const NOTIFICATIONS_MESSAGES = {
 	"custom/wpm": 'custom/wpm',
 	"custom/clearLine": 'custom/clearLine',
+	"custom/newLine": "custom/newLine",
+	"custom/newWords": "custom/newWords",
 	"custom/preventTypo": 'custom/preventTypo',
 	"custom/resetWpm": 'custom/resetWpm',
 }
+
+let counter = 0
 /**
  * A. Collect wrong words
  * B. Analytics
  * C. Create diagnostics from comparison
  */
 function checkForSpellingErrors(document: TextDocument, filters?: WordsFilterConfigurationOutput): Diagnostic[] {
-	// console.log("clear");
 	// console.log("1. ----------------------------");
 	// 1. Get 2 code lines
 	const sourceCode = document.getText();
 	const codeBlockMatch = getFencedCodeBlockContentNodeByName(sourceCode, "typing");
 	if (!codeBlockMatch) return []
 	const blockText = codeBlockMatch.node.text
-	const paragraphs = getParagraphs(blockText)
+	const paragraphs = getParagraphs(blockText); // first paragraph starts at 0
 
 	totalNumberOfLines = paragraphs.reduce((acc, paragraph) => {
 		return acc + paragraph.lines.length
@@ -239,6 +242,8 @@ function checkForSpellingErrors(document: TextDocument, filters?: WordsFilterCon
 			// // console.log("[server.ts,217] mispelledIndex: ", mispelledIndex);
 			if (mispelledIndex === undefined) {
 				/* 2.0.1 Start wpm measure */
+				const isEndOfLine = remainingLine.length === mainLine.length;
+				const isAtCurrentLine = getIsAtCurrentLine(paragraphStart, lineIndex);
 				if (currentPosition) {
 					// console.log("2. -----------");
 					// console.log("[server.ts,229] currentPosition: ", currentPosition);
@@ -247,14 +252,10 @@ function checkForSpellingErrors(document: TextDocument, filters?: WordsFilterCon
 						wpmMap[currentPosition.line] = { start: Date.now(), wpm: -1 }
 					}
 					/* 2.0.2 End wpm measure */
-					const isEndOfLine = remainingLine.length === mainLine.length;
-					// console.log("[server.ts,236] mainLine: ", mainLine);
-					// console.log("[server.ts,236] remainingLine: ", remainingLine);
-					// console.log("[server.ts,233] endOfLine: ", isEndOfLine);
-					const absoluteLine = convertToAbsoluteLine(paragraphStart, lineIndex);
 					// console.log("[server.ts,240] absoluteLine: ", absoluteLine);
 					// console.log("[server.ts,242] wpmMap: ", wpmMap);
-					if (absoluteLine !== currentPosition.line) return;
+					// if (absoluteLine !== currentPosition.line) return;
+					if (!isAtCurrentLine) return;
 					if (isEndOfLine && wpmMap[currentPosition.line].wpm === -1) {
 						const startTime = wpmMap[currentPosition.line];
 						// console.log("[server.ts,237] startTime:  ", startTime);
@@ -274,11 +275,22 @@ function checkForSpellingErrors(document: TextDocument, filters?: WordsFilterCon
 					}
 				}
 
-				/* 2.0.3 Send wpm to client */
-				if (mainLine.length === remainingLine.length) {
+				if (isEndOfLine) {
 					const absoluteLine = convertToAbsoluteLine(paragraphStart, lineIndex);
-					// // console.log("[server.ts,226] absoluteLine: ", absoluteLine);
+					/* 2.0.3 Send wpm to client */
 					connection.sendNotification(NOTIFICATIONS_MESSAGES["custom/wpm"], { wpmMap, absoluteLine });
+
+					/* 2.0.4 automatically add new words */
+					const absoluteParagraphStart = convertToAbsoluteLine(0, paragraphStart);
+					if (currentPosition) {
+						// const isCursorInsideParagraph = currentPosition?.line >= absoluteParagraphStart && currentPosition?.line <= absoluteLine;
+						const isCursorEndOfParagraph = currentPosition?.line === (absoluteParagraphStart - 1) + rest.length; // - 1: because absolute start is 1-index (the line number in the editor starts with 1)
+						console.log("[server.ts,293] isCursorEndOfParagraph: ", isCursorEndOfParagraph);
+						if (isCursorEndOfParagraph && filters?.autoNewWords) {
+							const newWords = getRandomWords(filters.amount, filters);
+							connection.sendNotification(NOTIFICATIONS_MESSAGES["custom/newWords"], { newWords });
+						}
+					}
 				}
 
 				/* 2.1 B.1 Analytics */
@@ -291,7 +303,8 @@ function checkForSpellingErrors(document: TextDocument, filters?: WordsFilterCon
 				return [];
 			}
 
-			console.log("[server.ts,295] filters: ", filters);
+			// console.log("[server.ts,295] filters: ", filters);
+			console.log("[server.ts,307] mispelledIndex: ", mispelledIndex);
 			if (filters?.clearOnError) {
 				connection.sendNotification(NOTIFICATIONS_MESSAGES["custom/clearLine"]);
 				return;
@@ -356,6 +369,9 @@ function checkForSpellingErrors(document: TextDocument, filters?: WordsFilterCon
 	})
 	return diagnostics;
 
+	/**
+	 * 0 based index
+	 */
 	function convertToAbsoluteLine(paragraphStart: number, index: number): number {
 		if (!codeBlockMatch) return -1;
 		const blockStart = codeBlockMatch.node.startPosition.row;
@@ -380,6 +396,7 @@ connection.onDidChangeTextDocument((params) => {
 // TODO: this is always called?! When I was adding diagnostics, the logs here would always print
 connection.onCompletion((params: TextDocumentPositionParams): CompletionItem[] => {
 	currentPosition = params.position;
+	console.log("[server.ts,406] currentPosition: ", currentPosition);
 	return [
 		{
 			label: 'words',
@@ -416,6 +433,12 @@ connection.onCompletionResolve(
 		return item;
 	}
 );
+
+connection.onNotification('custom/cursorPosition', (params) => {
+	currentPosition = params.position;
+	// console.log(`Cursor position updated: ${JSON.stringify(currentPosition)}`);
+});
+
 
 documents.listen(connection);
 connection.listen();
