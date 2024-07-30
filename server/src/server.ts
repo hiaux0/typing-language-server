@@ -33,7 +33,10 @@ import {
 } from "./types/types";
 import { JsonDb } from "./data/jsonDb";
 import { prettyPrintTypoTableAll } from "./modules/pretty-print";
-import { getFilterConfigurationsForWords } from "./features/configuration";
+import {
+  getFilterConfigurationsForWords,
+  NEW_WORDS_TRIGGER,
+} from "./features/configuration";
 
 interface ExampleSettings {
   maxNumberOfProblems: number;
@@ -213,7 +216,7 @@ another block
 
 let currentWord: string | undefined = "";
 let currentTypo: string | undefined = "";
-let currentPosition: Position | undefined = undefined;
+let currentPosition: Position = { line: 0, character: 0 };
 let totalNumberOfLines = 0;
 let wpmMap: Record<string, { start: number; wpm: number }> = {};
 const NOTIFICATIONS_MESSAGES = {
@@ -278,35 +281,33 @@ function checkForSpellingErrors(
         /* 2.0.1 Start wpm measure */
         const isEndOfLine = remainingLine.length === mainLine.length;
         const isAtCurrentLine = getIsAtCurrentLine(paragraphStart, lineIndex);
-        if (currentPosition) {
-          // console.log("2. -----------");
-          // console.log("[server.ts,229] currentPosition: ", currentPosition);
-          // if (currentPosition.character === 1 && !wpmMap[currentPosition.line]) {
-          if (!wpmMap[currentPosition.line]) {
-            wpmMap[currentPosition.line] = { start: Date.now(), wpm: -1 };
-          }
-          /* 2.0.2 End wpm measure */
-          // console.log("[server.ts,240] absoluteLine: ", absoluteLine);
-          // console.log("[server.ts,242] wpmMap: ", wpmMap);
-          // if (absoluteLine !== currentPosition.line) return;
-          if (!isAtCurrentLine) return;
-          if (isEndOfLine && wpmMap[currentPosition.line].wpm === -1) {
-            const startTime = wpmMap[currentPosition.line];
-            // console.log("[server.ts,237] startTime:  ", startTime);
-            const finishTime = Date.now();
-            // Hack, due to no reliable way to get the current cursor position
-            if (finishTime === startTime.start) return;
+        // console.log("2. -----------");
+        // console.log("[server.ts,229] currentPosition: ", currentPosition);
+        // if (currentPosition.character === 1 && !wpmMap[currentPosition.line]) {
+        if (!wpmMap[currentPosition.line]) {
+          wpmMap[currentPosition.line] = { start: Date.now(), wpm: -1 };
+        }
+        /* 2.0.2 End wpm measure */
+        // console.log("[server.ts,240] absoluteLine: ", absoluteLine);
+        // console.log("[server.ts,242] wpmMap: ", wpmMap);
+        // if (absoluteLine !== currentPosition.line) return;
+        if (!isAtCurrentLine) return;
+        if (isEndOfLine && wpmMap[currentPosition.line].wpm === -1) {
+          const startTime = wpmMap[currentPosition.line];
+          // console.log("[server.ts,237] startTime:  ", startTime);
+          const finishTime = Date.now();
+          // Hack, due to no reliable way to get the current cursor position
+          if (finishTime === startTime.start) return;
 
-            // console.log("[server.ts,239] finishTime: ", finishTime);
-            const numWords = mainLine.split(" ").length;
-            // console.log("[server.ts,242] numWords: ", numWords);
-            const delta = (finishTime - startTime.start) / 1000;
-            // console.log("[server.ts,243] delta: ", delta);
-            const perWord = delta / numWords; // TODO We're are not counting each word itself, but all words together
-            const wpm = Math.round(60 / perWord);
-            // console.log("[server.ts,249] wpm: ", wpm);
-            wpmMap[currentPosition.line].wpm = wpm;
-          }
+          // console.log("[server.ts,239] finishTime: ", finishTime);
+          const numWords = mainLine.split(" ").length;
+          // console.log("[server.ts,242] numWords: ", numWords);
+          const delta = (finishTime - startTime.start) / 1000;
+          // console.log("[server.ts,243] delta: ", delta);
+          const perWord = delta / numWords; // TODO We're are not counting each word itself, but all words together
+          const wpm = Math.round(60 / perWord);
+          // console.log("[server.ts,249] wpm: ", wpm);
+          wpmMap[currentPosition.line].wpm = wpm;
         }
 
         if (isEndOfLine) {
@@ -329,27 +330,25 @@ function checkForSpellingErrors(
       }
 
       /* 2.0.4 automatically add new words */
+      // const isCursorInsideParagraph = currentPosition?.line >= absoluteParagraphStart && currentPosition?.line <= absoluteLine;
       const absoluteParagraphStart = convertToAbsoluteLine(0, paragraphStart);
-      if (currentPosition) {
-        // const isCursorInsideParagraph = currentPosition?.line >= absoluteParagraphStart && currentPosition?.line <= absoluteLine;
-        const isCursorEndOfParagraph =
-          currentPosition?.line === absoluteParagraphStart - 1 + rest.length; // - 1: because absolute start is 1-index (the line number in the editor starts with 1)
-        console.log(
-          "[server.ts,293] isCursorEndOfParagraph: ",
-          isCursorEndOfParagraph,
-        );
-        if (isCursorEndOfParagraph && filters?.autoNewWords) {
-          const newWords = getRandomWords(filters.amount, filters);
-          connection.sendNotification(
-            NOTIFICATIONS_MESSAGES["custom/newWords"],
-            { newWords },
-          );
-        }
+      const isNewWordsTrigger =
+        remainingLine[mispelledIndex] === NEW_WORDS_TRIGGER;
+      const isCursorEndOfParagraph =
+        currentPosition.line === absoluteParagraphStart - 1 + rest.length; // - 1: because absolute start is 1-index (the line number in the editor starts with 1)
+      /*prettier-ignore*/ console.log( "[server.ts,293] isCursorEndOfParagraph: ", isCursorEndOfParagraph,);
+      const shouldAddNewWords =
+        isCursorEndOfParagraph && isNewWordsTrigger && filters?.autoNewWords;
+      if (shouldAddNewWords) {
+        const newWords = getRandomWords(filters.amount, filters);
+        connection.sendNotification(NOTIFICATIONS_MESSAGES["custom/newWords"], {
+          newWords,
+        });
       }
 
       // console.log("[server.ts,295] filters: ", filters);
       console.log("[server.ts,307] mispelledIndex: ", mispelledIndex);
-      if (filters?.clearOnError) {
+      if (filters?.clearOnError && !isNewWordsTrigger) {
         connection.sendNotification(NOTIFICATIONS_MESSAGES["custom/clearLine"]);
         return;
       }

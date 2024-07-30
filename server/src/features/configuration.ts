@@ -18,6 +18,8 @@ export const defaultFilterConfigurationOutput: WordsFilterConfigurationOutput =
     sequence: [],
   };
 
+export const NEW_WORDS_TRIGGER = ".";
+
 /**
  * @example
  * ```ts
