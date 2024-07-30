@@ -362,7 +362,7 @@ function checkForSpellingErrors(
         /* 2.5 B.2 Tell client to prevent typo */
         connection.sendNotification(
           NOTIFICATIONS_MESSAGES["custom/preventTypo"],
-          { givenLine: mainLine },
+          { mainLine },
         );
       }
       if (currentPosition === undefined) return;
@@ -380,7 +380,7 @@ function checkForSpellingErrors(
         /* 2.5 B.4 Tell client to prevent typo */
         connection.sendNotification(
           NOTIFICATIONS_MESSAGES["custom/preventTypo"],
-          { givenLine: mainLine },
+          { mainLine },
         );
       }
       let isSubstring = false;
@@ -409,7 +409,7 @@ function checkForSpellingErrors(
   ): number {
     if (!codeBlockMatch) return -1;
     const blockStart = codeBlockMatch.node.startPosition.row;
-    const asAbsoluteLine = blockStart + paragraphStart + index + 1; // + 1: because an index, always has a givenLine before them;
+    const asAbsoluteLine = blockStart + paragraphStart + index + 1; // + 1: because an index, always has a mainLine before them;
     return asAbsoluteLine;
   }
 
