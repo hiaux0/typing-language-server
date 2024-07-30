@@ -296,7 +296,11 @@ function checkForSpellingErrors(
            * 2.0.3 Auto enter
            * Note: Should come before wpm, else the new lines mess up the wpm marks
            */
-          if (filters?.autoEnter) {
+          if (filters?.clearLineOnFinish) {
+            connection.sendNotification(
+              NOTIFICATIONS_MESSAGES["custom/clearLine"],
+            );
+          } else if (filters?.autoEnter) {
             connection.sendNotification(
               NOTIFICATIONS_MESSAGES["custom/newLine"],
             );

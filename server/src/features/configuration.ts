@@ -12,6 +12,7 @@ export const defaultFilterConfigurationOutput: WordsFilterConfigurationOutput =
     repeat: 1,
     autoEnter: false,
     autoNewWords: false,
+    clearLineOnFinish: false,
     clearOnError: false,
     ignore: [],
     anyOrder: [],
@@ -53,6 +54,7 @@ export function getFilterConfigurationsForWords(
     if (asJson.autoEnter) output.autoEnter = asJson.autoEnter;
     if (asJson.autoNewWords) output.autoNewWords = asJson.autoNewWords;
     if (asJson.clearOnError) output.clearOnError = asJson.clearOnError;
+    if (asJson.clearLineOnFinish) output.clearLineOnFinish = asJson.clearLineOnFinish;
 
     stringToArray("ignore");
     stringToArray("anyOrder");
