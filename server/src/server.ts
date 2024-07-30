@@ -45,7 +45,25 @@ let hasDiagnosticRelatedInformationCapability = false;
 // Cache the settings of all open documents
 const documentSettings: Map<string, Thenable<ExampleSettings>> = new Map();
 
+/**
+ * WorkspaceFolder must have "typing" in its path
+ */
+function canInitialize(params: InitializeParams): boolean {
+	const allowList = ["typing"]
+	const okay = allowList.find(allowedName => {
+		const okayByWorkSpaceFolder = params.workspaceFolders?.find(folder => folder.name.includes(allowedName))
+		return okayByWorkSpaceFolder;
+	})
+	return !!okay;
+}
+
 connection.onInitialize((params: InitializeParams) => {
+	if (!canInitialize(params)) {
+		return {
+			capabilities: {}
+		} as InitializeResult
+	}
+
 	const capabilities = params.capabilities;
 	hasDiagnosticRelatedInformationCapability = !!(
 		capabilities.textDocument &&
@@ -89,7 +107,10 @@ const typingDb = new JsonDb<TypingAnalyticsMap>();
 let mainAnalyticsMap: TypingAnalyticsMap = {};
 documents.onDidOpen((event) => {
 	typingDb.setDbPath(event.document.uri);
-	mainAnalyticsMap = typingDb.readDb();
+	const data = typingDb.readDb();
+	if (data) {
+		mainAnalyticsMap = data
+	}
 	filterConfig = getFilterConfigurationsForWords(event.document.getText())
 })
 
@@ -279,18 +300,6 @@ function checkForSpellingErrors(document: TextDocument, filters?: WordsFilterCon
 					const absoluteLine = convertToAbsoluteLine(paragraphStart, lineIndex);
 					/* 2.0.3 Send wpm to client */
 					connection.sendNotification(NOTIFICATIONS_MESSAGES["custom/wpm"], { wpmMap, absoluteLine });
-
-					/* 2.0.4 automatically add new words */
-					const absoluteParagraphStart = convertToAbsoluteLine(0, paragraphStart);
-					if (currentPosition) {
-						// const isCursorInsideParagraph = currentPosition?.line >= absoluteParagraphStart && currentPosition?.line <= absoluteLine;
-						const isCursorEndOfParagraph = currentPosition?.line === (absoluteParagraphStart - 1) + rest.length; // - 1: because absolute start is 1-index (the line number in the editor starts with 1)
-						console.log("[server.ts,293] isCursorEndOfParagraph: ", isCursorEndOfParagraph);
-						if (isCursorEndOfParagraph && filters?.autoNewWords) {
-							const newWords = getRandomWords(filters.amount, filters);
-							connection.sendNotification(NOTIFICATIONS_MESSAGES["custom/newWords"], { newWords });
-						}
-					}
 				}
 
 				/* 2.1 B.1 Analytics */
@@ -301,6 +310,18 @@ function checkForSpellingErrors(document: TextDocument, filters?: WordsFilterCon
 					updateAnalytics(mainAnalyticsMap, currentWord, currentWord);
 				}
 				return [];
+			}
+
+			/* 2.0.4 automatically add new words */
+			const absoluteParagraphStart = convertToAbsoluteLine(0, paragraphStart);
+			if (currentPosition) {
+				// const isCursorInsideParagraph = currentPosition?.line >= absoluteParagraphStart && currentPosition?.line <= absoluteLine;
+				const isCursorEndOfParagraph = currentPosition?.line === (absoluteParagraphStart - 1) + rest.length; // - 1: because absolute start is 1-index (the line number in the editor starts with 1)
+				console.log("[server.ts,293] isCursorEndOfParagraph: ", isCursorEndOfParagraph);
+				if (isCursorEndOfParagraph && filters?.autoNewWords) {
+					const newWords = getRandomWords(filters.amount, filters);
+					connection.sendNotification(NOTIFICATIONS_MESSAGES["custom/newWords"], { newWords });
+				}
 			}
 
 			// console.log("[server.ts,295] filters: ", filters);

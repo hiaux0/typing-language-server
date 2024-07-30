@@ -19,11 +19,15 @@ export class JsonDb<T> {
         this.dbPath = dbFilePath;
     }
 
-    public readDb(): T {
-        const dbPath = this.getDbPath();
-        const raw = fs.readFileSync(dbPath, { encoding: 'utf8' });
-        const asJson = JSON.parse(raw);
-        return asJson;
+    public readDb(): T | undefined {
+        try {
+            const dbPath = this.getDbPath();
+            const raw = fs.readFileSync(dbPath, { encoding: 'utf8' });
+            const asJson = JSON.parse(raw);
+            return asJson;
+        } catch (error) {
+            return
+        }
     }
 
     public writeDb(uri: Uri, data: any): void {
