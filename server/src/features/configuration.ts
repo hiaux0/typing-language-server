@@ -10,6 +10,7 @@ export const defaultFilterConfigurationOutput: WordsFilterConfigurationOutput =
     amount: 10,
     length: 999,
     repeat: 1,
+    autoEnter: false,
     autoNewWords: false,
     clearOnError: false,
     ignore: [],
@@ -49,6 +50,7 @@ export function getFilterConfigurationsForWords(
     output.length = asJson.length;
     if (asJson.lesson) output.lesson = asJson.lesson;
     if (asJson.repeat) output.repeat = asJson.repeat;
+    if (asJson.autoEnter) output.autoEnter = asJson.autoEnter;
     if (asJson.autoNewWords) output.autoNewWords = asJson.autoNewWords;
     if (asJson.clearOnError) output.clearOnError = asJson.clearOnError;
 
