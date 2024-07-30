@@ -1,43 +1,43 @@
 interface GetParagraphsResult {
-    start: number,
-    lines: string[]
+  start: number;
+  lines: string[];
 }
 
 export function addMarkdownTableBorders(input: string): string {
-    const result = `| ${input} |`;
-    return result;
+  const result = `| ${input} |`;
+  return result;
 }
 
 export function getParagraphs(input: string): GetParagraphsResult[] {
-    if (!input) return []
+  if (!input) return [];
 
-    const result: GetParagraphsResult[] = [];
-    const split = input.split("\n");
-    let step: GetParagraphsResult = {
+  const result: GetParagraphsResult[] = [];
+  const split = input.split("\n");
+  let step: GetParagraphsResult = {
+    start: NaN,
+    lines: [],
+  };
+  for (let i = 0; i < split.length; i++) {
+    const line = split[i];
+    if (line.trim() === "") continue;
+
+    if (Number.isNaN(step.start)) {
+      step.start = i;
+    }
+    step.lines.push(line);
+
+    const nextLine = split[i + 1];
+    const isNextLineEmpty = !nextLine?.trim();
+    if (isNextLineEmpty) {
+      result.push(step);
+      step = {
         start: NaN,
         lines: [],
+      };
     }
-    for (let i = 0; i < split.length; i++) {
-        const line = split[i];
-        if (line.trim() === '') continue;
+  }
 
-        if (Number.isNaN(step.start)) {
-            step.start = i;
-        }
-        step.lines.push(line);
-
-        const nextLine = split[i + 1];
-        const isNextLineEmpty = !nextLine?.trim();
-        if (isNextLineEmpty) {
-            result.push(step)
-            step = {
-                start: NaN,
-                lines: []
-            }
-        }
-    }
-
-    return result;
+  return result;
 }
 // const result = getParagraphs(`000
 // 111
@@ -56,7 +56,7 @@ export function getParagraphs(input: string): GetParagraphsResult[] {
  * const input = `
  * 1 hello world this is it // Paragraph 1 - index 0
  * 2 hello world this is it
- * 3 
+ * 3
  * 4 another block // Paragraph 2 - index 3
  * 5 another block
  * 6 another block
@@ -66,20 +66,20 @@ export function getParagraphs(input: string): GetParagraphsResult[] {
  * ```
  */
 export function getParagraphStartIndeces(input: string): number[] {
-    if (!input) return []
+  if (!input) return [];
 
-    const indeces = [0]; // If not empty, there is always a paragraph at index 0
-    const split = input.split("\n");
-    for (let i = 0; i < split.length; i++) {
-        const line = split[i];
-        if (line !== "") continue;
-        const next = i + 1;
-        const nextLine = split[next];
-        if (!nextLine) continue;
-        indeces.push(next)
-    }
+  const indeces = [0]; // If not empty, there is always a paragraph at index 0
+  const split = input.split("\n");
+  for (let i = 0; i < split.length; i++) {
+    const line = split[i];
+    if (line !== "") continue;
+    const next = i + 1;
+    const nextLine = split[next];
+    if (!nextLine) continue;
+    indeces.push(next);
+  }
 
-    return indeces;
+  return indeces;
 }
 // const result = getParagraphStartIndeces(`hello world this is it
 // hello world this is it
@@ -89,51 +89,60 @@ export function getParagraphStartIndeces(input: string): number[] {
 // another block`)
 // console.log("[string.ts,38] result: ", result);
 
-export function getWordAtIndex(input: string, index: number): string | undefined {
-    const untilChars = [' ', '\n', '\t']
-    let current = input[index];
-    if (!current) return;
-    if (untilChars.includes(current)) return;
+export function getWordAtIndex(
+  input: string,
+  index: number,
+): string | undefined {
+  const untilChars = [" ", "\n", "\t"];
+  let current = input[index];
+  if (!current) return;
+  if (untilChars.includes(current)) return;
 
-    let startIndex = getIndexBackwardsUntil(input, index, untilChars)
-    let endIndex = getIndexForwardUntil(input, index, untilChars)
-    const word = input.slice(startIndex, endIndex + 1)
-    return word;
+  let startIndex = getIndexBackwardsUntil(input, index, untilChars);
+  let endIndex = getIndexForwardUntil(input, index, untilChars);
+  const word = input.slice(startIndex, endIndex + 1);
+  return word;
 }
 
 export function findLongest(input: string[]): string {
-    if (input.length === 0) return '';
-    let longest = '';
-    for (const item of input) {
-        if (item.length > longest.length) {
-            longest = item;
-        }
+  if (input.length === 0) return "";
+  let longest = "";
+  for (const item of input) {
+    if (item.length > longest.length) {
+      longest = item;
     }
-    return longest
+  }
+  return longest;
 }
 
-function getIndexBackwardsUntil(input: string, index: number, untilChars: string[]): number {
-    let startIndex = 0
-    for (let i = index; i >= 0; i--) {
-        let char = input[i];
-        if (untilChars.includes(char)) {
-            break;
-        }
-        startIndex = i
+function getIndexBackwardsUntil(
+  input: string,
+  index: number,
+  untilChars: string[],
+): number {
+  let startIndex = 0;
+  for (let i = index; i >= 0; i--) {
+    let char = input[i];
+    if (untilChars.includes(char)) {
+      break;
     }
-    return startIndex
+    startIndex = i;
+  }
+  return startIndex;
 }
 
-function getIndexForwardUntil(input: string, index: number, untilChars: string[]): number {
-    let endIndex = 0
-    for (let i = index; i < input.length; i++) {
-        let char = input[i];
-        if (untilChars.includes(char)) {
-            break;
-        }
-        endIndex = i
+function getIndexForwardUntil(
+  input: string,
+  index: number,
+  untilChars: string[],
+): number {
+  let endIndex = 0;
+  for (let i = index; i < input.length; i++) {
+    let char = input[i];
+    if (untilChars.includes(char)) {
+      break;
     }
-    return endIndex
+    endIndex = i;
+  }
+  return endIndex;
 }
-
-
