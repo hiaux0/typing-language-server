@@ -70,7 +70,11 @@ export function getFilterConfigurationsForWords(
     function stringToArray(key: keyof WordsFilterConfigurationOutput): void {
       if (typeof asJson[key] === "string") {
         const value = asJson[key] as string;
-        const lettersArr = value.split(",").map((char) => char.trim());
+        /*prettier-ignore*/ console.log("[configuration.ts,73] value: ", value);
+        let lettersArr: string[] = [];
+        if (value.trim() !== "") {
+          lettersArr = value.split(",").map((char) => char.trim());
+        }
         // @ts-ignore - output has props with number as keys, but we assign them at the start of the try block
         output[key] = lettersArr;
       }
