@@ -1,4 +1,5 @@
 import { defaultFilterConfigurationOutput } from "../features/configuration";
+import { getNextLetterByFrequencyForIgnore } from "../features/lessons/frequency";
 import { getRandomElement } from "../modules/array";
 import { TypingLessons, WordsFilterConfigurationOutput } from "../types/types";
 import * as WordsData from "./words.json";
@@ -8,6 +9,8 @@ const lessonsMap: Record<TypingLessons, string[]> = {
   words: WordsData,
   alphabet: ["abcdefghijklmnopqrstuvwxyz"],
   ["alphabet-chunks"]: ["abcdefghijklmnopqrstuvwxyz"],
+  ["letter-frequency"]: WordsData,
+  ["lf"]: WordsData,
   ["ac"]: ["abcdefghijklmnopqrstuvwxyz"],
   bigrams: [],
   vim: ["xp", "ciw", "diw", "viw", "dk"],
@@ -17,6 +20,7 @@ export function getRandoNumber(min: number, max: number): number {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
+const nextLetterForIgnoreGenerator = getNextLetterByFrequencyForIgnore();
 /**
  * A. amount
  * B. length
@@ -49,6 +53,8 @@ export function getRandomWords(
     const chosenWords = rndArr.map((i) => WordsData[i]);
     return chosenWords;
   }
+  const lettersToIgnore = nextLetterForIgnoreGenerator.next().value;
+  /*prettier-ignore*/ console.log("[random-data.ts,57] lettersToIgnore: ", lettersToIgnore);
 
   let infiniteLoopCounter = 0;
   /* 1. */
@@ -101,12 +107,21 @@ export function getRandomWords(
       if (wordCollector.has(targetWord)) continue;
       wordCollector.add(targetWord);
     } else {
+      if (filters?.lesson === "letter-frequency" || filters?.lesson === "lf") {
+        if (oneOfFilter.length === 0) return wordPool;
+        wordPool = wordPool.filter((word) => {
+          const hasLetter = lettersToIgnore.find((letter) => {
+            const included = word.toLowerCase().includes(letter.toLowerCase());
+            return included;
+          });
+          return !hasLetter;
+        });
+      }
+
       orderOfFilterProps.forEach((filterProp) => {
         if (typeof orderingFilterFunctionMap[filterProp] !== "function") return;
         wordPool = orderingFilterFunctionMap[filterProp](wordPool);
-        // console.log("[random-data.ts,69] filterProp: ", filterProp);
-        const sub = wordPool.slice(0, 20);
-        // console.log("[random-data.ts,70] sub: ", sub);
+        wordPool.slice(0, 20);
       });
       const targetWord = getRandomElement(wordPool);
       if (!targetWord) {
@@ -119,7 +134,7 @@ export function getRandomWords(
     }
   }
   const result = Array.from(wordCollector);
-  if (finalFilters.repeat) return doubleResult(result);
+  if (finalFilters.repeat) return repeatResult(result);
 
   return result;
 
@@ -152,7 +167,7 @@ export function getRandomWords(
     wordPool = wordPool.filter((word) => word.includes(sequence));
     return wordPool;
   }
-  function doubleResult(result: string[]): string[] {
+  function repeatResult(result: string[]): string[] {
     const doubled: string[] = [];
     result.forEach((word) => {
       for (let i = 0; i < finalFilters.repeat; i++) {

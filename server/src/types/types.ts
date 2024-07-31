@@ -50,6 +50,8 @@ export type TypingAnalyticsMap = Record<string, TypingAnalytics>;
 
 export type TypingLessons =
   | "words"
+  | "letter-frequency"
+  | "lf" // letter-frequency
   | "alphabet" // abcdefghijklmnopqrstuvwxyz
   | "alphabet-chunks" // chunks of alphabet
   | "ac" // alphabet-chunks
