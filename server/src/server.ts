@@ -303,7 +303,7 @@ function checkForSpellingErrors(
            */
           const absoluteLine = convertToAbsoluteLine(paragraphStart, lineIndex);
           if (filters?.autoNew) {
-            const newWords = getRandomWords(filters.amount, filters);
+            const newWords = getRandomWords(filters.amount, filters).words;
             connection.sendNotification(
               NOTIFICATIONS_MESSAGES["custom/autoNew"],
               {
@@ -352,7 +352,7 @@ function checkForSpellingErrors(
         isNewWordsTrigger &&
         filters?.newWordsOnTrigger;
       if (shouldAddNewWords) {
-        const newWords = getRandomWords(filters.amount, filters);
+        const newWords = getRandomWords(filters.amount, filters).words;
         connection.sendNotification(NOTIFICATIONS_MESSAGES["custom/newWords"], {
           newWords,
         });
@@ -463,6 +463,10 @@ connection.onCompletion(
         label: "clear",
         kind: CompletionItemKind.Text,
       },
+      {
+        label: "filters",
+        kind: CompletionItemKind.Text,
+      },
     ];
   },
 );
@@ -470,11 +474,15 @@ connection.onCompletion(
 connection.onCompletionResolve((item: CompletionItem): CompletionItem => {
   if (item.label === "clear") {
     wrongWords.clear();
+  } else if (item.label === "filters") {
+    // Note! should not print inside "typing" block, else shows errors and other unwanted behavior
+    const filterAsText = JSON.stringify(filterConfig, null, 2);
+    item.insertText = filterAsText;
   } else if (item.label === "words") {
-    // const randomWords = getRandomWords(filterConfig.amount).join(" ");
-    const randomWords =
-      getRandomWords(filterConfig.amount, filterConfig)?.join(" ") ??
-      "no words for given filter found";
+    const randomWordsArr = getRandomWords(filterConfig.amount, filterConfig);
+    if (!randomWordsArr) return item;
+    const { words } = randomWordsArr;
+    const randomWords = words.join(" ") ?? "no words for given filter found";
 
     item.insertText = randomWords;
     item.detail = randomWords;

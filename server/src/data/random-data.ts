@@ -38,10 +38,10 @@ const nextLetterForIgnoreGenerator = getNextLetterByFrequencyForIgnore();
 export function getRandomWords(
   amount: number = 10,
   filters?: WordsFilterConfigurationOutput,
-): string[] {
+): { words: string[]; filters: WordsFilterConfigurationOutput } {
   const finalFilters = {
     ...defaultFilterConfigurationOutput,
-    ...filters,
+    ...JSON.parse(JSON.stringify(filters)) as WordsFilterConfigurationOutput,
   };
   /* F. */
   const finalAmount = finalFilters?.repeat
@@ -53,7 +53,7 @@ export function getRandomWords(
       Math.floor(Math.random() * len),
     );
     const chosenWords = rndArr.map((i) => WordsData[i]);
-    return chosenWords;
+    return { words: chosenWords, filters: finalFilters };
   }
   const lettersToIgnore = nextLetterForIgnoreGenerator.next().value;
 
@@ -63,16 +63,7 @@ export function getRandomWords(
   let currentOneOfIndex = 0;
   const wordCollector: Set<string> = new Set();
   /* C. */
-  let oneOfFilter = finalFilters.oneOf ?? [];
-  if (oneOfFilter.length === 1 && oneOfFilter[0] === "") {
-    oneOfFilter = [];
-  }
-  // Filter by selecting a random index, then from there find the next word, that matches the filter
-  /* D. */
-  let lettersIgnore = finalFilters.ignore ?? [];
-  if (lettersIgnore.length === 1 && lettersIgnore[0] === "") {
-    lettersIgnore = [];
-  }
+  const initialOneOfFilters = [...finalFilters.oneOf];
   /* E. */
   const sequenceFilter = finalFilters.sequence ?? [];
   const wordLength = finalFilters.length;
@@ -86,7 +77,6 @@ export function getRandomWords(
   };
 
   /* A. */
-  // while ((wordCollector.size < finalAmount) && infiniteLoopCounter < 2) {
   while (
     wordCollector.size < finalAmount &&
     infiniteLoopCounter < WordsData.length
@@ -111,6 +101,7 @@ export function getRandomWords(
       wordCollector.add(targetWord);
     } else {
       if (filters?.lesson === "letter-frequency" || filters?.lesson === "lf") {
+        // finalFilters.ignore = lettersToIgnore;
         wordPool = wordPool.filter((word) => {
           const hasLetter = lettersToIgnore.find((letter) => {
             const included = word.toLowerCase().includes(letter.toLowerCase());
@@ -121,8 +112,9 @@ export function getRandomWords(
 
         if (lettersToIgnore.length < 20) {
           const currentLetter = getCurrentLetterFromIgnore(lettersToIgnore);
-          if (!oneOfFilter.includes(currentLetter)) {
-            oneOfFilter.push(currentLetter);
+          /*prettier-ignore*/ console.log("[random-data.ts,115] currentLetter: ", currentLetter);
+          if (!finalFilters.oneOf.includes(currentLetter)) {
+            finalFilters.oneOf.push(currentLetter);
           }
         }
       }
@@ -140,15 +132,26 @@ export function getRandomWords(
       wordCollector.add(targetWord);
     }
   }
-  const result = Array.from(wordCollector);
-  if (finalFilters.repeat) return repeatResult(result);
+
+  let words = Array.from(wordCollector);
+  if (finalFilters.repeat) {
+    words = repeatResult(words);
+  }
+  const result = {
+    words,
+    filters: finalFilters,
+  };
+  /*prettier-ignore*/ console.log("[random-data.ts,144] initialOneOfFilters: ", initialOneOfFilters);
+  finalFilters.oneOf = initialOneOfFilters;
+  console.log("finalFilters.oneOf: ", finalFilters.oneOf)
 
   return result;
 
   function filterByOneOf(wordPool: string[]): string[] {
     /* C. */
-    if (oneOfFilter.length === 0) return wordPool;
-    const letter = oneOfFilter[currentOneOfIndex++ % oneOfFilter.length];
+    if (finalFilters.oneOf.length === 0) return wordPool;
+    const letter =
+      finalFilters.oneOf[currentOneOfIndex++ % finalFilters.oneOf.length];
     wordPool = wordPool.filter((word) => word.includes(letter));
     return wordPool;
   }
@@ -160,9 +163,9 @@ export function getRandomWords(
   }
   function filterByIgnore(wordPool: string[]): string[] {
     /* D. */
-    if (lettersIgnore.length === 0) return wordPool;
+    if (finalFilters.ignore.length === 0) return wordPool;
     wordPool = wordPool.filter((word) =>
-      lettersIgnore.every((filter) => !word.includes(filter)),
+      finalFilters.ignore.every((filter) => !word.includes(filter)),
     );
     return wordPool;
   }

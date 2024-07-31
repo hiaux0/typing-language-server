@@ -70,7 +70,6 @@ export function getFilterConfigurationsForWords(
     function stringToArray(key: keyof WordsFilterConfigurationOutput): void {
       if (typeof asJson[key] === "string") {
         const value = asJson[key] as string;
-        /*prettier-ignore*/ console.log("[configuration.ts,73] value: ", value);
         let lettersArr: string[] = [];
         if (value.trim() !== "") {
           lettersArr = value.split(",").map((char) => char.trim());
