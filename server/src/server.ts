@@ -255,10 +255,10 @@ function checkForSpellingErrors(
   const hasNumberOfLinesReduced =
     totalNumberOfLines < Object.keys(wpmMap).length;
   if (hasNumberOfLinesReduced) {
-    const clearWpmWhenAutoNewNotActive = !filters?.autoNew;
-    if (clearWpmWhenAutoNewNotActive) {
-      connection.sendNotification(NOTIFICATIONS_MESSAGES["custom/resetWpm"]);
-    }
+    //const clearWpmWhenAutoNewNotActive = !filters?.autoNew;
+    //if (clearWpmWhenAutoNewNotActive) {
+    //}
+    connection.sendNotification(NOTIFICATIONS_MESSAGES["custom/resetWpm"]);
     wpmMap = {};
   }
 
@@ -292,6 +292,7 @@ function checkForSpellingErrors(
           const delta = (finishTime - startTime.start) / 1000;
           const perWord = delta / numWords; // TODO We're are not counting each word itself, but all words together
           const wpm = Math.round(60 / perWord);
+          /*prettier-ignore*/ console.log("[server.ts,295] wpm: ", wpm);
           wpmMap[currentPosition.line].wpm = wpm;
         }
 
