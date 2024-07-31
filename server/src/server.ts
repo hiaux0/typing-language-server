@@ -218,6 +218,7 @@ let currentPosition: Position = { line: 0, character: 0 };
 let totalNumberOfLines = 0;
 let wpmMap: Record<string, { start: number; wpm: number }> = {};
 const NOTIFICATIONS_MESSAGES = {
+  "custom/autoNew": "custom/autoNew",
   "custom/wpm": "custom/wpm",
   "custom/clearLine": "custom/clearLine",
   "custom/newLine": "custom/newLine",
@@ -254,7 +255,10 @@ function checkForSpellingErrors(
   const hasNumberOfLinesReduced =
     totalNumberOfLines < Object.keys(wpmMap).length;
   if (hasNumberOfLinesReduced) {
-    connection.sendNotification(NOTIFICATIONS_MESSAGES["custom/resetWpm"]);
+    const clearWpmWhenAutoNewNotActive = !filters?.autoNew;
+    if (clearWpmWhenAutoNewNotActive) {
+      connection.sendNotification(NOTIFICATIONS_MESSAGES["custom/resetWpm"]);
+    }
     wpmMap = {};
   }
 
@@ -296,18 +300,27 @@ function checkForSpellingErrors(
            * 2.0.3 Auto enter
            * Note: Should come before wpm, else the new lines mess up the wpm marks
            */
-          if (filters?.clearLineOnFinish) {
+          const absoluteLine = convertToAbsoluteLine(paragraphStart, lineIndex);
+          if (filters?.autoNew) {
+            const newWords = getRandomWords(filters.amount, filters);
+            connection.sendNotification(
+              NOTIFICATIONS_MESSAGES["custom/autoNew"],
+              {
+                newWords,
+              },
+            );
+          } else if (filters?.clearLineOnFinish) {
+            /* 2.0.4 Clear line when finished typing */
             connection.sendNotification(
               NOTIFICATIONS_MESSAGES["custom/clearLine"],
             );
           } else if (filters?.autoEnter) {
+            /* 2.0.5 New lines when finished typing */
             connection.sendNotification(
               NOTIFICATIONS_MESSAGES["custom/newLine"],
             );
           }
-
-          const absoluteLine = convertToAbsoluteLine(paragraphStart, lineIndex);
-          /* 2.0.4 Send wpm to client */
+          /* 2.0.6 B. Send wpm to client */
           connection.sendNotification(NOTIFICATIONS_MESSAGES["custom/wpm"], {
             wpmMap,
             absoluteLine,
@@ -324,14 +337,19 @@ function checkForSpellingErrors(
         return [];
       }
 
-      /* 2.0.4 automatically add new words */
+      /*
+       * 2.0.4 automatically add new words with trigger character
+       * because there is a trigger character, the trigger character is considered to be a "typo"
+       */
       const absoluteParagraphStart = convertToAbsoluteLine(0, paragraphStart);
       const isNewWordsTrigger =
         remainingLine[mispelledIndex] === NEW_WORDS_TRIGGER;
       const isCursorEndOfParagraph =
         currentPosition.line === absoluteParagraphStart - 1 + rest.length; // - 1: because absolute start is 1-index (the line number in the editor starts with 1)
       const shouldAddNewWords =
-        isCursorEndOfParagraph && isNewWordsTrigger && filters?.autoNewWords;
+        isCursorEndOfParagraph &&
+        isNewWordsTrigger &&
+        filters?.newWordsOnTrigger;
       if (shouldAddNewWords) {
         const newWords = getRandomWords(filters.amount, filters);
         connection.sendNotification(NOTIFICATIONS_MESSAGES["custom/newWords"], {

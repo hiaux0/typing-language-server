@@ -61,12 +61,13 @@ export interface WordsFilterConfigurationInput {
   length: number; // length of the word
   repeat?: number;
   autoEnter?: boolean; // Auto new line when finished. Note: Either this or clearLineOnFinish
-  autoNewWords?: boolean;
+  autoNew?: boolean; // Auto add new words, by clearing the old line
+  newWordsOnTrigger?: boolean; // Add new words on trigger "."
   clearOnError?: boolean;
   clearLineOnFinish?: boolean; // Note: Either this or autoEnter
   // letters: string | string[], // "rs" or ["st", "rs"]
   ignore?: string | string[]; // "rs" or ["st", "rs"]
-  anyOrder?: string | string[]; // "rs, at" or ["rs", "at"]
+  anyOrder?: string | string[]; // "rs, at" or ["rs", "at"] -- should have have both characters in the word, but in any order
   oneOf?: string | string[]; // "rs" or ["r", "s"]
   sequence?: string | string[]; // "rs, at" or ["rs", "at"]
 }

@@ -11,7 +11,8 @@ export const defaultFilterConfigurationOutput: WordsFilterConfigurationOutput =
     length: 999,
     repeat: 1,
     autoEnter: false,
-    autoNewWords: false,
+    autoNew: false,
+    newWordsOnTrigger: false,
     clearLineOnFinish: false,
     clearOnError: false,
     ignore: [],
@@ -52,9 +53,12 @@ export function getFilterConfigurationsForWords(
     if (asJson.lesson) output.lesson = asJson.lesson;
     if (asJson.repeat) output.repeat = asJson.repeat;
     if (asJson.autoEnter) output.autoEnter = asJson.autoEnter;
-    if (asJson.autoNewWords) output.autoNewWords = asJson.autoNewWords;
+    if (asJson.autoNew) output.autoNew = asJson.autoNew;
+    if (asJson.newWordsOnTrigger)
+      output.newWordsOnTrigger = asJson.newWordsOnTrigger;
     if (asJson.clearOnError) output.clearOnError = asJson.clearOnError;
-    if (asJson.clearLineOnFinish) output.clearLineOnFinish = asJson.clearLineOnFinish;
+    if (asJson.clearLineOnFinish)
+      output.clearLineOnFinish = asJson.clearLineOnFinish;
 
     stringToArray("ignore");
     stringToArray("anyOrder");
