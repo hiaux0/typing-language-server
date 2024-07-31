@@ -87,6 +87,4 @@ export function getCurrentLetterFromIgnore(ignoreLetters: string[]) {
 ////console.log("gen.next().value ", gen.next().value);
 //console.log("gen.next().value ", gen.next().value);
 //const val = gen.next().value;
-///*prettier-ignore*/ // console.log("[frequency.ts,69] val: ", val);
 //const result = getCurrentLetterFromIgnore(val);
-///*prettier-ignore*/ // console.log("[frequency.ts,69] result: ", result);

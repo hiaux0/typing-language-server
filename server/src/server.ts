@@ -138,7 +138,6 @@ connection.onDidChangeWatchedFiles((_change) => {
 });
 
 connection.languages.diagnostics.on(async (params) => {
-  // /*prettier-ignore*/ console.log("0. [server.ts,140] diagnostics: ");
   const document = documents.get(params.textDocument.uri);
   if (document !== undefined) {
     const upperCaseItems = await upperCaseValidator(document);
@@ -238,7 +237,6 @@ function checkForSpellingErrors(
   document: TextDocument,
   filters?: WordsFilterConfigurationOutput,
 ): Diagnostic[] {
-  // /*prettier-ignore*/ console.log("0.1 ------ [server.ts,236] checkForSpellingErrors: ");
   // 1. Get 2 code lines
   const sourceCode = document.getText();
   const codeBlockMatch = getFencedCodeBlockContentNodeByName(
@@ -266,7 +264,6 @@ function checkForSpellingErrors(
 
   /* 2. Create diagnostics from comparison */
   const diagnostics: Diagnostic[] = [];
-  // /*prettier-ignore*/ // console.log("[server.ts,267] paragraphs: ", paragraphs);
   paragraphs.forEach((paragraph) => {
     const { start: paragraphStart, lines } = paragraph;
     const [mainLine, ...rest] = lines;
@@ -295,7 +292,6 @@ function checkForSpellingErrors(
           const delta = (finishTime - startTime.start) / 1000;
           const perWord = delta / numWords; // TODO We're are not counting each word itself, but all words together
           const wpm = Math.round(60 / perWord);
-          /*prettier-ignore*/ // console.log("[server.ts,295] wpm: ", wpm);
           wpmMap[currentPosition.line].wpm = wpm;
         }
 
@@ -309,11 +305,6 @@ function checkForSpellingErrors(
             lineIndex,
           );
           if (filters?.autoNew) {
-            // /*prettier-ignore*/ console.log("1 [server.ts,305] autoNew: ");
-            /*prettier-ignore*/ // console.log("[server.ts,305] paragraphStart: ", paragraphStart);
-            /*prettier-ignore*/ // console.log("[server.ts,307] lineIndex: ", lineIndex);
-            /*prettier-ignore*/ // console.log("[server.ts,304] absoluteLineIndex: ", absoluteLineIndex);
-            /*prettier-ignore*/ // console.log("[server.ts,306] remainingLine: ", remainingLine);
             const newWords = getRandomWords(filters.amount, filters).words;
             connection.sendNotification(
               NOTIFICATIONS_MESSAGES["custom/autoNew"],
