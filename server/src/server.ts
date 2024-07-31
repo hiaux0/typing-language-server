@@ -32,11 +32,12 @@ import {
   WordsFilterConfigurationOutput,
 } from "./types/types";
 import { JsonDb } from "./data/jsonDb";
-import { prettyPrintTypoTableAll } from "./modules/pretty-print";
+// import { prettyPrintTypoTableAll } from "./modules/pretty-print";
 import {
   getFilterConfigurationsForWords,
   NEW_WORDS_TRIGGER,
 } from "./features/configuration";
+import { increaseCurrentLetterIndex } from "./features/lessons/frequency";
 
 interface ExampleSettings {
   maxNumberOfProblems: number;
@@ -137,6 +138,7 @@ connection.onDidChangeWatchedFiles((_change) => {
 });
 
 connection.languages.diagnostics.on(async (params) => {
+  // /*prettier-ignore*/ console.log("0. [server.ts,140] diagnostics: ");
   const document = documents.get(params.textDocument.uri);
   if (document !== undefined) {
     const upperCaseItems = await upperCaseValidator(document);
@@ -227,7 +229,6 @@ const NOTIFICATIONS_MESSAGES = {
   "custom/resetWpm": "custom/resetWpm",
 };
 
-let counter = 0;
 /**
  * A. Collect wrong words
  * B. Analytics
@@ -237,6 +238,7 @@ function checkForSpellingErrors(
   document: TextDocument,
   filters?: WordsFilterConfigurationOutput,
 ): Diagnostic[] {
+  // /*prettier-ignore*/ console.log("0.1 ------ [server.ts,236] checkForSpellingErrors: ");
   // 1. Get 2 code lines
   const sourceCode = document.getText();
   const codeBlockMatch = getFencedCodeBlockContentNodeByName(
@@ -264,6 +266,7 @@ function checkForSpellingErrors(
 
   /* 2. Create diagnostics from comparison */
   const diagnostics: Diagnostic[] = [];
+  // /*prettier-ignore*/ // console.log("[server.ts,267] paragraphs: ", paragraphs);
   paragraphs.forEach((paragraph) => {
     const { start: paragraphStart, lines } = paragraph;
     const [mainLine, ...rest] = lines;
@@ -292,7 +295,7 @@ function checkForSpellingErrors(
           const delta = (finishTime - startTime.start) / 1000;
           const perWord = delta / numWords; // TODO We're are not counting each word itself, but all words together
           const wpm = Math.round(60 / perWord);
-          /*prettier-ignore*/ console.log("[server.ts,295] wpm: ", wpm);
+          /*prettier-ignore*/ // console.log("[server.ts,295] wpm: ", wpm);
           wpmMap[currentPosition.line].wpm = wpm;
         }
 
@@ -301,8 +304,16 @@ function checkForSpellingErrors(
            * 2.0.3 Auto enter
            * Note: Should come before wpm, else the new lines mess up the wpm marks
            */
-          const absoluteLine = convertToAbsoluteLine(paragraphStart, lineIndex);
+          const absoluteLineIndex = convertToAbsoluteLineIndex(
+            paragraphStart,
+            lineIndex,
+          );
           if (filters?.autoNew) {
+            // /*prettier-ignore*/ console.log("1 [server.ts,305] autoNew: ");
+            /*prettier-ignore*/ // console.log("[server.ts,305] paragraphStart: ", paragraphStart);
+            /*prettier-ignore*/ // console.log("[server.ts,307] lineIndex: ", lineIndex);
+            /*prettier-ignore*/ // console.log("[server.ts,304] absoluteLineIndex: ", absoluteLineIndex);
+            /*prettier-ignore*/ // console.log("[server.ts,306] remainingLine: ", remainingLine);
             const newWords = getRandomWords(filters.amount, filters).words;
             connection.sendNotification(
               NOTIFICATIONS_MESSAGES["custom/autoNew"],
@@ -324,8 +335,11 @@ function checkForSpellingErrors(
           /* 2.0.6 B. Send wpm to client */
           connection.sendNotification(NOTIFICATIONS_MESSAGES["custom/wpm"], {
             wpmMap,
-            absoluteLine,
+            absoluteLine: absoluteLineIndex,
           });
+
+          // When no error, and end of line, increase currentLetter
+          increaseCurrentLetterIndex();
         }
 
         /* 2.1 B.1 Analytics */
@@ -342,7 +356,10 @@ function checkForSpellingErrors(
        * 2.0.4 automatically add new words with trigger character
        * because there is a trigger character, the trigger character is considered to be a "typo"
        */
-      const absoluteParagraphStart = convertToAbsoluteLine(0, paragraphStart);
+      const absoluteParagraphStart = convertToAbsoluteLineIndex(
+        0,
+        paragraphStart,
+      );
       const isNewWordsTrigger =
         remainingLine[mispelledIndex] === NEW_WORDS_TRIGGER;
       const isCursorEndOfParagraph =
@@ -364,7 +381,7 @@ function checkForSpellingErrors(
       }
 
       /* 2.2 C. Create diagnostics */
-      const startRow = convertToAbsoluteLine(paragraphStart, lineIndex);
+      const startRow = convertToAbsoluteLineIndex(paragraphStart, lineIndex);
       const start = Position.create(startRow, mispelledIndex); // +1 line index start at 0
       const end = Position.create(startRow, remainingLine.length);
       const range = {
@@ -417,7 +434,8 @@ function checkForSpellingErrors(
       currentTypo = typo;
 
       typingDb.writeDb(document.uri, mainAnalyticsMap);
-      const pretty = prettyPrintTypoTableAll(mainAnalyticsMap);
+
+      // const pretty = prettyPrintTypoTableAll(mainAnalyticsMap);
       // console.log("open:", JSON.stringify(pretty))
     });
   });
@@ -426,7 +444,7 @@ function checkForSpellingErrors(
   /**
    * 0 based index
    */
-  function convertToAbsoluteLine(
+  function convertToAbsoluteLineIndex(
     paragraphStart: number,
     index: number,
   ): number {
@@ -437,16 +455,14 @@ function checkForSpellingErrors(
   }
 
   function getIsAtCurrentLine(paragraphStart: number, index: number) {
-    const asAbsoluteLine = convertToAbsoluteLine(paragraphStart, index);
+    const asAbsoluteLine = convertToAbsoluteLineIndex(paragraphStart, index);
     const isAtCurrentLine = asAbsoluteLine === currentPosition?.line;
     return isAtCurrentLine;
   }
 }
 
-connection.onDidChangeTextDocument((params) => {});
-
 // This handler provides the initial list of the completion items.
-// TODO: this is always called?! When I was adding diagnostics, the logs here would always print
+// TODO this is always called?! When I was adding diagnostics, the logs here would always print
 connection.onCompletion(
   (params: TextDocumentPositionParams): CompletionItem[] => {
     currentPosition = params.position;

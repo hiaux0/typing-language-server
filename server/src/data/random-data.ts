@@ -2,6 +2,7 @@ import { defaultFilterConfigurationOutput } from "../features/configuration";
 import {
   getCurrentLetterFromIgnore,
   getNextLetterByFrequencyForIgnore,
+  getNextLetterByFrequencyForIgnoreGenerator,
 } from "../features/lessons/frequency";
 import { getRandomElement } from "../modules/array";
 import { TypingLessons, WordsFilterConfigurationOutput } from "../types/types";
@@ -23,7 +24,8 @@ export function getRandoNumber(min: number, max: number): number {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-const nextLetterForIgnoreGenerator = getNextLetterByFrequencyForIgnore();
+const nextLetterForIgnoreGenerator =
+  getNextLetterByFrequencyForIgnoreGenerator();
 /**
  * A. amount
  * B. length
@@ -39,9 +41,11 @@ export function getRandomWords(
   amount: number = 10,
   filters?: WordsFilterConfigurationOutput,
 ): { words: string[]; filters: WordsFilterConfigurationOutput } {
+  // /*prettier-ignore*/ console.log("getRandomWords start -------------------")
+  // /*prettier-ignore*/ console.log("[random-data.ts,39] getRandomWords: ");
   const finalFilters = {
     ...defaultFilterConfigurationOutput,
-    ...JSON.parse(JSON.stringify(filters)) as WordsFilterConfigurationOutput,
+    ...(JSON.parse(JSON.stringify(filters)) as WordsFilterConfigurationOutput),
   };
   /* F. */
   const finalAmount = finalFilters?.repeat
@@ -55,7 +59,7 @@ export function getRandomWords(
     const chosenWords = rndArr.map((i) => WordsData[i]);
     return { words: chosenWords, filters: finalFilters };
   }
-  const lettersToIgnore = nextLetterForIgnoreGenerator.next().value;
+  const lettersToIgnore = getNextLetterByFrequencyForIgnore();
 
   let infiniteLoopCounter = 0;
   /* 1. */
@@ -141,9 +145,11 @@ export function getRandomWords(
     words,
     filters: finalFilters,
   };
-  /*prettier-ignore*/ console.log("[random-data.ts,144] initialOneOfFilters: ", initialOneOfFilters);
+  // /*prettier-ignore*/ // // // console.log("[random-data.ts,144] initialOneOfFilters: ", initialOneOfFilters);
   finalFilters.oneOf = initialOneOfFilters;
-  console.log("finalFilters.oneOf: ", finalFilters.oneOf)
+  // console.log("finalFilters.oneOf: ", finalFilters.oneOf)
+  /*prettier-ignore*/ // // // console.log("[random-data.ts,141] words: ", words);
+  // /*prettier-ignore*/ console.log("getRandomWords end -------------------")
 
   return result;
 
