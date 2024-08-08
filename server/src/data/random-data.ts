@@ -15,7 +15,23 @@ const lessonsMap: Record<TypingLessons, string[]> = {
   ["letter-frequency"]: WordsData,
   ["lf"]: WordsData,
   ["ac"]: ["abcdefghijklmnopqrstuvwxyz"],
-  bigrams: [],
+  /*prettier-ignore*/
+  bigrams: [
+    "al", "an", "ar", "as", "at",
+    "ce", "co",
+    "de",
+    "ea", "ed", "en", "er", "es",
+    "ha", "he", "hi",
+    "ic", "in", "io", "is", "it",
+    "le",
+    "me",
+    "nd", "ne", "ng", "nt",
+    "of", "on", "or", "ou",
+    "ra", "re", "ri", "ro",
+    "se", "st",
+    "te", "th", "ti", "to",
+    "ve",
+  ],
   vim: ["xp", "ciw", "diw", "viw", "dk"],
 };
 
