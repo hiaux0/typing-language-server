@@ -63,20 +63,41 @@ export function getFilterConfigurationsForWords(
     stringToArray("ignore");
     stringToArray("anyOrder");
     stringToArray("oneOf");
-    stringToArray("sequence");
+    stringToArray("sequence", { splitByLetter: false });
 
     return output;
 
-    function stringToArray(key: keyof WordsFilterConfigurationOutput): void {
-      if (typeof asJson[key] === "string") {
-        const value = asJson[key] as string;
-        let lettersArr: string[] = [];
-        if (value.trim() !== "") {
-          lettersArr = value.split(",").map((char) => char.trim());
+    function stringToArray(
+      key: keyof WordsFilterConfigurationOutput,
+      options?: { splitByLetter: false },
+    ): void {
+      if (typeof asJson[key] !== "string") return;
+      const value = asJson[key] as string;
+      let lettersArr: string[] = [];
+      if (value.trim() !== "") {
+        if (options?.splitByLetter === false) {
+          if (value.includes(",")) {
+            // "a,b,c"
+            lettersArr = value.split(",").map((char) => char.trim());
+          } else {
+            // "a b c"
+            lettersArr = value.split(" ").map((char) => char.trim());
+          }
+        } else {
+          if (value.includes(",")) {
+            // "a,b,c"
+            lettersArr = value.split(",").map((char) => char.trim());
+          } else if (value.includes(" ")) {
+            // "a b c"
+            lettersArr = value.split(" ").map((char) => char.trim());
+          } else {
+            // "abc"
+            lettersArr = value.split("").map((char) => char.trim());
+          }
         }
-        // @ts-ignore - output has props with number as keys, but we assign them at the start of the try block
-        output[key] = lettersArr;
       }
+      // @ts-ignore - output has props with number as keys, but we assign them at the start of the try block
+      output[key] = lettersArr;
     }
   } catch (error) {
     console.log("Not valid JSON");

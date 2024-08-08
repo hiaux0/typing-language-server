@@ -38,7 +38,7 @@ export function getRandomWords(
   amount: number = 10,
   filters?: WordsFilterConfigurationOutput,
 ): { words: string[]; filters: WordsFilterConfigurationOutput } {
-  const finalFilters = {
+  const finalFilters: WordsFilterConfigurationOutput = {
     ...defaultFilterConfigurationOutput,
     ...(JSON.parse(JSON.stringify(filters)) as WordsFilterConfigurationOutput),
   };
