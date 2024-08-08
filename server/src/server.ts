@@ -57,7 +57,7 @@ function canInitialize(params: InitializeParams): boolean {
   const allowList = ["typing"];
   const okay = allowList.find((allowedName) => {
     const okayByWorkSpaceFolder = params.workspaceFolders?.find((folder) =>
-      folder.name.includes(allowedName),
+      folder.name.endsWith(allowedName),
     );
     return okayByWorkSpaceFolder;
   });
@@ -225,6 +225,7 @@ const NOTIFICATIONS_MESSAGES = {
   "custom/newLine": "custom/newLine",
   "custom/newWords": "custom/newWords",
   "custom/preventTypo": "custom/preventTypo",
+  "custom/printWpmNextCodeBlockName": "custom/printWpmNextCodeBlockName",
   "custom/resetWpm": "custom/resetWpm",
 };
 
@@ -258,7 +259,7 @@ function checkForSpellingErrors(
     //const clearWpmWhenAutoNewNotActive = !filters?.autoNew;
     //if (clearWpmWhenAutoNewNotActive) {
     //}
-    connection.sendNotification(NOTIFICATIONS_MESSAGES["custom/resetWpm"]);
+    /*prettier-ignore*/ connection.sendNotification(NOTIFICATIONS_MESSAGES["custom/resetWpm"]);
     wpmMap = {};
   }
 
@@ -293,6 +294,7 @@ function checkForSpellingErrors(
           const perWord = delta / numWords; // TODO We're are not counting each word itself, but all words together
           const wpm = Math.round(60 / perWord);
           wpmMap[currentPosition.line].wpm = wpm;
+          /*prettier-ignore*/ connection.sendNotification( NOTIFICATIONS_MESSAGES["custom/printWpmNextCodeBlockName"], { wpm, line: codeBlockMatch.node.startPosition.row });
         }
 
         if (isEndOfLine) {
@@ -306,28 +308,16 @@ function checkForSpellingErrors(
           );
           if (filters?.autoNew) {
             const newWords = getRandomWords(filters.amount, filters).words;
-            connection.sendNotification(
-              NOTIFICATIONS_MESSAGES["custom/autoNew"],
-              {
-                newWords,
-              },
-            );
+            /*prettier-ignore*/ connection.sendNotification( NOTIFICATIONS_MESSAGES["custom/autoNew"], { newWords, });
           } else if (filters?.clearLineOnFinish) {
             /* 2.0.4 Clear line when finished typing */
-            connection.sendNotification(
-              NOTIFICATIONS_MESSAGES["custom/clearLine"],
-            );
+            /*prettier-ignore*/ connection.sendNotification( NOTIFICATIONS_MESSAGES["custom/clearLine"],);
           } else if (filters?.autoEnter) {
             /* 2.0.5 New lines when finished typing */
-            connection.sendNotification(
-              NOTIFICATIONS_MESSAGES["custom/newLine"],
-            );
+            /*prettier-ignore*/ connection.sendNotification( NOTIFICATIONS_MESSAGES["custom/newLine"],);
           }
           /* 2.0.6 B. Send wpm to client */
-          connection.sendNotification(NOTIFICATIONS_MESSAGES["custom/wpm"], {
-            wpmMap,
-            absoluteLine: absoluteLineIndex,
-          });
+          /*prettier-ignore*/ connection.sendNotification(NOTIFICATIONS_MESSAGES["custom/wpm"], { wpmMap, absoluteLine: absoluteLineIndex, });
 
           // When no error, and end of line, increase currentLetter
           increaseCurrentLetterIndex();
@@ -361,13 +351,11 @@ function checkForSpellingErrors(
         filters?.newWordsOnTrigger;
       if (shouldAddNewWords) {
         const newWords = getRandomWords(filters.amount, filters).words;
-        connection.sendNotification(NOTIFICATIONS_MESSAGES["custom/newWords"], {
-          newWords,
-        });
+        /*prettier-ignore*/ connection.sendNotification(NOTIFICATIONS_MESSAGES["custom/newWords"], { newWords });
       }
 
       if (filters?.clearOnError && !isNewWordsTrigger) {
-        connection.sendNotification(NOTIFICATIONS_MESSAGES["custom/clearLine"]);
+        /*prettier-ignore*/ connection.sendNotification(NOTIFICATIONS_MESSAGES["custom/clearLine"]);
         return;
       }
 
@@ -391,10 +379,7 @@ function checkForSpellingErrors(
       const isMistypedSpace = remainingLine[mispelledIndex] === " ";
       if (isMistypedSpace) {
         /* 2.5 B.2 Tell client to prevent typo */
-        connection.sendNotification(
-          NOTIFICATIONS_MESSAGES["custom/preventTypo"],
-          { mainLine },
-        );
+        /*prettier-ignore*/ connection.sendNotification( NOTIFICATIONS_MESSAGES["custom/preventTypo"], { mainLine });
       }
       if (currentPosition === undefined) return;
       if (!isAtCurrentLine && currentPosition !== undefined) return;
@@ -409,10 +394,7 @@ function checkForSpellingErrors(
       const typo = getWordAtIndex(remainingLine, mispelledIndex);
       if (typo) {
         /* 2.5 B.4 Tell client to prevent typo */
-        connection.sendNotification(
-          NOTIFICATIONS_MESSAGES["custom/preventTypo"],
-          { mainLine },
-        );
+        /*prettier-ignore*/ connection.sendNotification( NOTIFICATIONS_MESSAGES["custom/preventTypo"], { mainLine },);
       }
       let isSubstring = false;
       if (typo && currentTypo) {

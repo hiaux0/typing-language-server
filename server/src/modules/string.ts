@@ -89,6 +89,11 @@ export function getParagraphStartIndeces(input: string): number[] {
 // another block`)
 // console.log("[string.ts,38] result: ", result);
 
+/**
+ * getWordAtIndex("012 4567", 1) => "012"
+ * getWordAtIndex("012 4567", 2) => "012"
+ * getWordAtIndex("012 4567", 4) => "4567"
+ */
 export function getWordAtIndex(
   input: string,
   index: number,
